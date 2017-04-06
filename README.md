@@ -20,17 +20,17 @@ class Example(Renderer):
         Renderer.__init__(self, resolution)
         self.tick = 0
         self.shader('lights','shaders/horizontal_light.frag')
-    	self.texture('outputTexture')
+        self.texture('outputTexture')
     def draw(self):
         self.tick += 1.0 / 30.0
 
-        
+        # render to screen
         (self.shader('lights')
                 .tick(self.tick)
                 .draw('light_rendered')) # <- draw to screen or video frame
 
         # render to texture
-		(self.shader('lights')
+        (self.shader('lights')
                 .tick(self.tick)
                 .drawTo('outputTexture')) # <- draw to texture
 
