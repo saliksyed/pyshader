@@ -1,10 +1,11 @@
-# pyshader
+pyshader
+====================
 
-##A library for experimenting with OpenGL shaders
+A library for experimenting with OpenGL shaders
+---------------------
 
 
-
-NOTES: 
+### NOTES
 * You must have ffmpeg installed for this to work.
 * Not tested on Windows or Linux.
 * The library is aimed primarily at 2D or computational shaders
@@ -12,9 +13,9 @@ NOTES:
   videos are stored using texture names so you can't have 
   both a texture and a video named 'foobar' for example.
 
-USAGE:
+### USAGE
 
-You just need to import and extend Renderer from pyshader and add a `draw` method
+You just need to import and extend `Renderer` from `pyshader` and add a `draw` method
 to your class:
 
 ```
@@ -49,3 +50,5 @@ Alternatively you can render frames:
 viz = Example(Renderer.RES4K)
 viz.render_frames('video.mp4', 75) # <- render 75 frames to video.mp4
 ```
+
+You can find a more complicated example in the examples directory
