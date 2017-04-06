@@ -7,25 +7,6 @@ pyshader : OpenGL shaders made easy
 * Write shader output to MPEG video
 * Preview shader output using GLUT
 
-The library is a work in progress and is aimed primarily at 2D or computational shaders, 
-eventually I want to make this plug-and-play compatible with ShaderToy shaders but some work
-is needed to get the different features (audio).
-
-A lot of the structure is inspired by shadertoy (http://www.shadertoy.com) and igloojs (https://github.com/skeeto/igloojs)
-
-### Setup
-
-```
-sudo python setup.py install
-```
-
-Dependencies:
-* PyOpenGL (https://github.com/mcfletch/pyopengl)
-* Pillow (PIL) (https://github.com/python-pillow/Pillow)
-* numpy (https://github.com/numpy/numpy)
-
-(these will automatically be installed by the setup script)
-
 ### Usage
 
 You just need to import and extend `Renderer` from `pyshader` and add a `draw` method
@@ -67,9 +48,31 @@ viz.render_frames('video.mp4', 75) # <- render 75 frames to video.mp4
 You can find a more complicated example in the examples directory
 
 
+### Setup
+
+```
+sudo python setup.py install
+```
+
+### Dependencies
+* PyOpenGL (https://github.com/mcfletch/pyopengl)
+* Pillow (PIL) (https://github.com/python-pillow/Pillow)
+* numpy (https://github.com/numpy/numpy)
+
+(these will automatically be installed by the setup script)
+
+
 ### Notes
+The library is a work in progress and is aimed primarily at 2D or computational shaders, 
+eventually I want to make this plug-and-play compatible with ShaderToy shaders but some work
+is needed to get the different features (audio).
+
 * You must have ffmpeg installed for this to work.
 * Not tested on Windows or Linux.
 * You MUST use unique names for textures and videos ... internally
   videos are stored using texture names so you can't have 
   both a texture and a video named 'foobar' for example.
+
+Inspired by shadertoy (http://www.shadertoy.com) and igloojs (https://github.com/skeeto/igloojs)
+
+Licensed under GPL 3.0 (https://www.gnu.org/licenses/gpl-3.0.en.html)
