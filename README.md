@@ -26,13 +26,6 @@ Dependencies:
 
 (these will automatically be installed by the setup script)
 
-### Notes
-* You must have ffmpeg installed for this to work.
-* Not tested on Windows or Linux.
-* You MUST use unique names for textures and videos ... internally
-  videos are stored using texture names so you can't have 
-  both a texture and a video named 'foobar' for example.
-
 ### Usage
 
 You just need to import and extend `Renderer` from `pyshader` and add a `draw` method
@@ -72,3 +65,11 @@ viz.render_frames('video.mp4', 75) # <- render 75 frames to video.mp4
 ```
 
 You can find a more complicated example in the examples directory
+
+
+### Notes
+* You must have ffmpeg installed for this to work.
+* Not tested on Windows or Linux.
+* You MUST use unique names for textures and videos ... internally
+  videos are stored using texture names so you can't have 
+  both a texture and a video named 'foobar' for example.
