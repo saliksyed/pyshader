@@ -1,17 +1,17 @@
-pyshader : Python library for experimenting with OpenGL shaders
+pyshader : OpenGL shaders made easy
 ====================
 
-pyshader is inspired by shadertoy (http://www.shadertoy.com) and igloojs (https://github.com/skeeto/igloojs)
+Features:
+* Quickly build shader pipelines: shader1->shader2->shader3
+* Easily import video and images into shaders as textures
+* Write shader output to MPEG video
+* Preview shader output using GLUT
 
 The library is a work in progress and is aimed primarily at 2D or computational shaders, 
 eventually I want to make this plug-and-play compatible with ShaderToy shaders but some work
-is needed to get the different features (audio)
+is needed to get the different features (audio).
 
-Features:
-* Quickly build shader pipelines using render to texture: shader1->shader2->shader3
-* Easily import video and images into shader as textures
-* Write shader output to MPEG video
-* Preview shader output using GLUT
+A lot of the structure is inspired by shadertoy (http://www.shadertoy.com) and igloojs (https://github.com/skeeto/igloojs)
 
 ### NOTES
 * You must have ffmpeg installed for this to work.
