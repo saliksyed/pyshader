@@ -1,8 +1,5 @@
-pyshader
+pyshader : Python library for experimenting with OpenGL shaders
 ====================
-
-A library for experimenting with OpenGL shaders
----------------------
 
 pyshader is inspired by shadertoy (http://www.shadertoy.com) and igloojs (https://github.com/skeeto/igloojs)
 
@@ -14,6 +11,7 @@ Features:
 * Quickly build shader pipelines using render to texture: shader1->shader2->shader3
 * Easily import video and images into shader as textures
 * Write shader output to MPEG video
+* Preview shader output using GLUT
 
 ### NOTES
 * You must have ffmpeg installed for this to work.
