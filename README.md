@@ -54,6 +54,8 @@ You can find a more complicated example in the examples directory
 sudo python setup.py install
 ```
 
+NOTE: If you want to use videos you must have ffmpeg installed and in your path.
+
 ### Dependencies
 * PyOpenGL (https://github.com/mcfletch/pyopengl)
 * Pillow (PIL) (https://github.com/python-pillow/Pillow)
