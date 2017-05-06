@@ -22,6 +22,15 @@ void main() {
 }
 """
 
+TEXTURE_FRAG_SHADER = """
+uniform sampler2D inputImage;
+varying vec2 index;
+
+void main() {
+    gl_FragColor = texture2D(inputImage, index);
+}
+"""
+
 def nearest_pow2(aSize):
     return math.pow(2, round(math.log(aSize) / math.log(2))) 
 
@@ -82,6 +91,22 @@ class Video:
         self.pipe = sp.Popen(command, stdout=sp.PIPE, bufsize=10**8)
 
 
+class RenderTarget:
+    def __init__(self, resolution):
+        self.width = resolution[0]
+        self.height = resolution[1]
+        self.framebuffer = glGenFramebuffers(1)
+        self.renderbuffer = glGenRenderbuffers(1)
+        glBindRenderbuffer(GL_RENDERBUFFER, self.renderbuffer)
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, int(self.width), int(self.height))
+        glBindRenderbuffer(GL_RENDERBUFFER, 0)
+
+
+    def attach(self, texture):
+        glBindFramebuffer(GL_FRAMEBUFFER, self.framebuffer)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.renderbuffer);
+
 class Renderer:
     RES8K = [7680, 4320]
     RES4K = [3840, 2160]
@@ -110,13 +135,11 @@ class Renderer:
         self.videos = {}
         self.width = float(width)
         self.height = float(height)
-        self.framebuffer = glGenFramebuffers(1)
-        self.renderBuffer = glGenRenderbuffers(1)
         self.isRunning = False
         self.isWriting = False
-        glBindRenderbuffer(GL_RENDERBUFFER, self.renderBuffer)
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, int(self.width), int(self.height))
-        glBindRenderbuffer(GL_RENDERBUFFER, 0)
+        self.render_target = RenderTarget(resolution)
+        # The default texture shader is used by drawTexture()
+        self.shaders['default_texture_shader'] = Shader(self)
         glutIdleFunc(self.idle)
 
     def run(self):
@@ -153,6 +176,12 @@ class Renderer:
         # sub class must implement!
         pass
 
+
+    def drawTexture(self, textureName):
+        (self.shader('default_texture_shader')
+            .input(textureName, withName='inputImage')
+            .draw())
+
     def display(self):
         glViewport(0, 0, int(self.width), int(self.height))
         self.draw()
@@ -182,15 +211,15 @@ class Renderer:
         pixel_buffer = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
         self.pipe.stdin.write(pixel_buffer)
 
-    def set_target(self, texture_name=None):
+    def set_target(self, texture_name=None, render_target=None):
         if texture_name == None:
             glBindFramebuffer(GL_FRAMEBUFFER, 0)
         else:
             if not texture_name in self.textures:
                 raise Exception('Target texture not found: ' + texture_name)
-            glBindFramebuffer(GL_FRAMEBUFFER, self.framebuffer)
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self.textures[texture_name].texture, 0)
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.renderBuffer);
+            if not render_target:
+                render_target = self.render_target
+            render_target.attach(self.textures[texture_name].texture)
 
     def render_frames(self, file_name, num_frames=60):
         # set the output file for the renderer:
@@ -226,26 +255,35 @@ class Renderer:
         return self.videos[name]
 
 class Shader:
-    def __init__(self, ctx, frag_shader, vertex_shader=None):
+    def __init__(self, ctx, frag_shader=None, vertex_shader=None, vbo_array=None):
         if vertex_shader:
             vertex_shader_str = open(vertex_shader).read()
         else:
             vertex_shader_str = QUAD_VERTEX_SHADER
+
+        if frag_shader:
+            frag_shader_str = open(frag_shader).read()
+        else:
+            frag_shader_str = TEXTURE_FRAG_SHADER
         vp = shaders.compileShader(vertex_shader_str, GL_VERTEX_SHADER)
-        fp = shaders.compileShader(open(frag_shader).read(), GL_FRAGMENT_SHADER)
+        fp = shaders.compileShader(frag_shader_str, GL_FRAGMENT_SHADER)
         self.shader = shaders.compileProgram(vp, fp)
         self.uniforms = {}
         self.ctx  = ctx
-        self.vbo = vbo.VBO(
-                        np.array( [
-                            [ -1, 1, 0 ],
-                            [ -1,-1, 0 ],
-                            [  1,-1, 0 ],
-                            [ -1, 1, 0 ],
-                            [  1,-1, 0 ],
-                            [  1, 1, 0 ]
-                        ],'f')
-                      )
+        if not vbo_array:
+            vbo_array = [
+                [ -1, 1, 0 ],
+                [ -1,-1, 0 ],
+                [  1,-1, 0 ],
+                [ -1, 1, 0 ],
+                [  1,-1, 0 ],
+                [  1, 1, 0 ]
+            ]
+        self.set_vbo(vbo_array)
+
+    def set_vbo(self, vbo_array):
+        self.vbo = vbo.VBO(np.array(vbo_array,'f'))
+        self.vbo_sz = len(vbo_array)
 
     def uniform(self, name, value=None):
         if value is None:
@@ -290,9 +328,9 @@ class Shader:
         self.uniform('iGlobalTime', tick)
         return self
 
-    def draw(self):
+    def draw(self, mode=GL_TRIANGLES):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glDrawArrays(GL_TRIANGLES, 0, 6)
+        glDrawArrays(mode, 0, self.vbo_sz)
         self.vbo.unbind()
         glDisableClientState(GL_VERTEX_ARRAY)
         shaders.glUseProgram(0)
