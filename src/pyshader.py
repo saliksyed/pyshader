@@ -34,6 +34,23 @@ void main() {
 def nearest_pow2(aSize):
     return math.pow(2, round(math.log(aSize) / math.log(2))) 
 
+
+def rotation_matrix(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = np.asarray(axis)
+    axis = axis/math.sqrt(np.dot(axis, axis))
+    a = math.cos(theta/2.0)
+    b, c, d = -axis*math.sin(theta/2.0)
+    aa, bb, cc, dd = a*a, b*b, c*c, d*d
+    bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
+    return np.array([aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac),
+                     2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab),
+                     2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc])
+
+
 class Texture:
     def __init__(self, name, tformat=GL_RGBA, wrap=GL_CLAMP_TO_EDGE, tfilter=GL_NEAREST, ttype=GL_UNSIGNED_BYTE):
         self.name = name
@@ -128,6 +145,7 @@ class Renderer:
         glClearColor(0.,0.,0.,1.)
         glEnable(GL_CULL_FACE)
         glEnable(GL_DEPTH_TEST)
+        glEnable( GL_PROGRAM_POINT_SIZE )
         glutDisplayFunc(self.display)
         glMatrixMode(GL_MODELVIEW)
         self.textures = {}
@@ -167,9 +185,9 @@ class Renderer:
         tex = self.texture(name, tformat=GL_RGB)
         tex.set(img_data, img.size[0], img.size[1])
 
-    def shader(self, name, frag_shader=None, vertex_shader=None):
+    def shader(self, name, frag_shader=None, vertex_shader=None, vbo=None):
         if vertex_shader != None or frag_shader != None:
-            self.shaders[name] = Shader(self, frag_shader, vertex_shader)
+            self.shaders[name] = Shader(self, frag_shader, vertex_shader, vbo)
         return self._get_shader(name)
 
     def draw(self):
@@ -254,8 +272,62 @@ class Renderer:
             raise Exception('Unknown video: ' + str(name))
         return self.videos[name]
 
+class VBO:
+    def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
+        if not arr:
+            arr = [
+                [ -1, 1, 0 ],
+                [ -1,-1, 0 ],
+                [  1,-1, 0 ],
+                [ -1, 1, 0 ],
+                [  1,-1, 0 ],
+                [  1, 1, 0 ]
+            ]
+        self.set_vertices(arr)
+        self.render_primitive=render_primitive
+
+    def set_vertices(self, arr):
+        self.vertices = arr
+        self.vbo = vbo.VBO(np.array(self.vertices,'f'))
+
+    def bind(self):
+        self.vbo.bind()
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(self.vbo)
+
+    def draw(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glDrawArrays(self.render_primitive, 0, self.size())
+
+    def unbind(self):
+        self.vbo.unbind()
+        glDisableClientState(GL_VERTEX_ARRAY)
+
+    def load_ply(self, fname):
+        vertices = []
+        header_ended = False
+        with open(fname, "r") as f:
+            for line in f.readlines():
+                line = line.rstrip()
+                if header_ended:
+                    vertices.append(map(float, line.split()))
+                elif line == "end_header":
+                    header_ended = True
+                else:
+                    continue
+        self.set_vertices(vertices)
+
+    def size(self):
+        return len(self.vertices)
+
+    def write_to_texture(self, texture):
+        print "foobar"
+
+    def read_from_texture(self, texture):
+        print "foobar"
+
 class Shader:
-    def __init__(self, ctx, frag_shader=None, vertex_shader=None, vbo_array=None):
+    def __init__(self, ctx, frag_shader=None, vertex_shader=None, vbo=None):
         if vertex_shader:
             vertex_shader_str = open(vertex_shader).read()
         else:
@@ -270,20 +342,12 @@ class Shader:
         self.shader = shaders.compileProgram(vp, fp)
         self.uniforms = {}
         self.ctx  = ctx
-        if not vbo_array:
-            vbo_array = [
-                [ -1, 1, 0 ],
-                [ -1,-1, 0 ],
-                [  1,-1, 0 ],
-                [ -1, 1, 0 ],
-                [  1,-1, 0 ],
-                [  1, 1, 0 ]
-            ]
-        self.set_vbo(vbo_array)
+        self.set_vbo(vbo)
 
-    def set_vbo(self, vbo_array):
-        self.vbo = vbo.VBO(np.array(vbo_array,'f'))
-        self.vbo_sz = len(vbo_array)
+    def set_vbo(self, val):
+        if not val:
+            val = VBO()
+        self.vbo = val
 
     def uniform(self, name, value=None):
         if value is None:
@@ -293,9 +357,13 @@ class Shader:
                 self.uniform(name)
             uniform_loc = self.uniforms[name]
             if isinstance(value, (list, tuple, np.ndarray)):
-                integer = isinstance(value[0], int)
-                method = 'glUniform' + str(len(value)) + ('i' if integer else 'f') + 'v'
-                globals()[method](uniform_loc, 1, np.array([[self.ctx.width, self.ctx.height]], 'f'))
+                if len(value) > 4:
+                    method = 'glUniformMatrix' + str(int(math.sqrt(len(value)))) + 'fv'
+                    globals()[method](uniform_loc, 1, False, value)
+                else:
+                    integer = isinstance(value[0], int)
+                    method = 'glUniform' + str(len(value)) + ('i' if integer else 'f') + 'v'
+                    globals()[method](uniform_loc, 1, value)
             elif isinstance(value, (float, int, bool)):
                 integer = isinstance(value, int)
                 if (integer):
@@ -319,8 +387,6 @@ class Shader:
         self.next_available_unit = 0
         shaders.glUseProgram(self.shader)
         self.vbo.bind()
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(self.vbo)
         self.uniform('iResolution', [self.ctx.width, self.ctx.height])
         return self
 
@@ -328,11 +394,9 @@ class Shader:
         self.uniform('iGlobalTime', tick)
         return self
 
-    def draw(self, mode=GL_TRIANGLES):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glDrawArrays(mode, 0, self.vbo_sz)
+    def draw(self):
+        self.vbo.draw()
         self.vbo.unbind()
-        glDisableClientState(GL_VERTEX_ARRAY)
         shaders.glUseProgram(0)
         return self
 
