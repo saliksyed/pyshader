@@ -125,7 +125,7 @@ class Renderer:
         glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH)
         glutInitWindowSize(width, height)
         glutCreateWindow('Visualization')
-        glClearColor(0.,0.,0.,1.)
+        glClearColor(0.,0.,0.,0.)
         glEnable(GL_CULL_FACE)
         glEnable(GL_DEPTH_TEST)
         glEnable( GL_PROGRAM_POINT_SIZE )

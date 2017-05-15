@@ -16,6 +16,7 @@ class PointCloudExample(Renderer):
         self.eye_pos = [-4.95, 13.65, -10.43]
         self.target_dist = 10.
         self.angle = 0.0
+        self.tilt_angle = 0.0
 
     def move(self, key, x, y):
         if key == 'w':
@@ -32,16 +33,22 @@ class PointCloudExample(Renderer):
             self.eye_pos[1]+=0.1
         elif key == 'z':
             self.eye_pos[1]-=0.1
-        elif key == 'k':
-            pass
-        elif key == 'l':
-            pass
+        elif key == 'e':
+            self.tilt_angle+=0.1
+        elif key == 'c':
+            self.tilt_angle-=0.1
 
     def draw(self):
         # Extend the draw method with your rendering logic!
         self.tick += 1.0 / 30.0
-        # step to the next frame of the video
-
+        
+        # enable alpha blending and point sprites
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+        glEnable(GL_POINT_SPRITE);
+        glClearColor(0.,0.,0.,1.)
+        glClear(GL_COLOR_BUFFER_BIT);
+        
         # We first render the light using horizontal_light.frag into a texture
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
@@ -49,6 +56,7 @@ class PointCloudExample(Renderer):
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         target_pos = [self.eye_pos[0] + self.target_dist * math.cos(self.angle), self.eye_pos[1], self.eye_pos[2] + self.target_dist * math.sin(self.angle)]
+        target_pos[1] += self.target_dist * math.sin(self.tilt_angle)
         gluLookAt(self.eye_pos[0], self.eye_pos[1], self.eye_pos[2], target_pos[0], target_pos[1], target_pos[2], 0, 1., 0)
         (self.shader('points')
                 .tick(self.tick)
