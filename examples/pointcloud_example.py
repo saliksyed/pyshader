@@ -12,6 +12,8 @@ class PointCloudExample(Renderer):
         self.vbo = VBO(GL_POINTS)
         self.vbo.load_ply('data/manhattan_1mm_points.ply')
         self.shader('points','shaders/render_point.frag', 'shaders/project_point.vert', self.vbo)
+        self.shader('depth','shaders/render_depth.frag', 'shaders/project_point_large.vert', self.vbo)
+        self.shader('dof','shaders/render_dof.frag')
         glutKeyboardFunc(self.move)
         self.eye_pos = [-4.95, 13.65, -10.43]
         self.target_dist = 10.
@@ -19,6 +21,9 @@ class PointCloudExample(Renderer):
         self.tilt_angle = 0.0
 
     def move(self, key, x, y):
+        """
+            Handle keyboard controls
+        """
         if key == 'w':
             self.eye_pos[0] += 0.5 * math.cos(self.angle)
             self.eye_pos[2] += 0.5 * math.sin(self.angle)
@@ -38,32 +43,52 @@ class PointCloudExample(Renderer):
         elif key == 'c':
             self.tilt_angle-=0.1
 
-    def draw(self):
-        # Extend the draw method with your rendering logic!
-        self.tick += 1.0 / 30.0
-        
-        # enable alpha blending and point sprites
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+    def setup_scene(self):
         glEnable(GL_POINT_SPRITE);
+        # setup the projection, modelview matrices
         glClearColor(0.,0.,0.,1.)
-        glClear(GL_COLOR_BUFFER_BIT);
-        
-        # We first render the light using horizontal_light.frag into a texture
+        glClear(GL_COLOR_BUFFER_BIT)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        gluPerspective(45, 1.5, 10., 1000.)
+        gluPerspective(45, 1.5, 0.1, 1000.)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
+
+        # compute the eye position, target position of our camera
         target_pos = [self.eye_pos[0] + self.target_dist * math.cos(self.angle), self.eye_pos[1], self.eye_pos[2] + self.target_dist * math.sin(self.angle)]
         target_pos[1] += self.target_dist * math.sin(self.tilt_angle)
         gluLookAt(self.eye_pos[0], self.eye_pos[1], self.eye_pos[2], target_pos[0], target_pos[1], target_pos[2], 0, 1., 0)
+        
+
+    def draw(self):
+        self.tick += 1.0 / 30.0
+        
+        glPushMatrix()
+        self.setup_scene()
         (self.shader('points')
                 .tick(self.tick)
+                .drawTo('baseImage'))
+        glClearColor(1.,1.,1.,1.)
+        glClear(GL_COLOR_BUFFER_BIT)
+        (self.shader('depth')
+                .tick(self.tick)
+                .drawTo('depthImage'))
+        glPopMatrix()
+
+        (self.shader('dof')
+                .tick(self.tick)
+                .input('baseImage', withName='iChannel0')
+                .input('depthImage', withName='iChannel1')
+                .uniform('minDistInFocus', 0.01)
+                .uniform('maxDistInFocus', 0.15)
+                .uniform('maxNearBlur', 6.0)
+                .uniform('maxFarBlur', 1.0)
                 .draw())
+
+
 
 
 # Renders the example visualization in a GLUT window
 if __name__ == '__main__':
-    viz = PointCloudExample(Renderer.RES720P)
+    viz = PointCloudExample(Renderer.RES1080P)
     viz.run()

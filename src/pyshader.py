@@ -217,7 +217,7 @@ class Renderer:
             glBindFramebuffer(GL_FRAMEBUFFER, 0)
         else:
             if not texture_name in self.textures:
-                raise Exception('Target texture not found: ' + texture_name)
+                self.texture(texture_name)
             if not render_target:
                 render_target = self.render_target
             render_target.attach(self.textures[texture_name].texture)
