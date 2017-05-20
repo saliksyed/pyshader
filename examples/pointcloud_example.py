@@ -5,15 +5,29 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import * 
 import math
 
+"""
+    This example shows a multi-pass shader that renders a a point cloud 
+    with depth of field.
+
+
+"""
+
 class PointCloudExample(Renderer):
     def __init__(self, resolution):
         Renderer.__init__(self, resolution)
         self.tick = 0
         self.vbo = VBO(GL_POINTS)
         self.vbo.load_ply('data/manhattan_1mm_points.ply')
+
+        # This shader will render the points normally to a texture
         self.shader('points','shaders/render_point.frag', 'shaders/project_point.vert', self.vbo)
-        self.shader('depth','shaders/render_depth.frag', 'shaders/project_point_large.vert', self.vbo)
+        
+        # This shader will render just the depth to a texture
+        self.shader('depth','shaders/render_depth.frag', 'shaders/project_point.vert', self.vbo)
+
+        # the Depth-Of-Field shader will take the depth image, point image and blur using the distance
         self.shader('dof','shaders/render_dof.frag')
+
         glutKeyboardFunc(self.move)
         self.eye_pos = [-4.95, 13.65, -10.43]
         self.target_dist = 10.

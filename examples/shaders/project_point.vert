@@ -2,12 +2,13 @@
 
 attribute vec3 vertex;
 varying vec3 vPos;
+varying float distToCamera;
 
 void main()
 {
     gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
     vec4 cs_position = gl_ModelViewMatrix * gl_Vertex;
-    float distToCamera = -cs_position.z;
+    distToCamera = -cs_position.z;
     if (distToCamera < 55.0) {
     	gl_PointSize = 2.0; 
     } else {
