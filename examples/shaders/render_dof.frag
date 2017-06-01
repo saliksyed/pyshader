@@ -36,8 +36,7 @@ void main()
 	} else if (dist < minDistInFocus) {
 		sigma = max(1.0, ((minDistInFocus - dist) / minDistInFocus) * maxNearBlur);
 	} else {
-		gl_FragColor = vec4(texture2D(iChannel0, uv.xy).rgb, 1.0);
-		return;
+		sigma = 0.5;
 	}
 
 	float Z = 0.0;

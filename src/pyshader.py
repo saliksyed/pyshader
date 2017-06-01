@@ -3,12 +3,14 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.arrays import vbo
 from OpenGL.GL import shaders
+from OpenGL.GL.ARB.color_buffer_float import * 
+from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 import subprocess as sp
 import sys
 import math
 from PIL import Image
-
+import random
 
 QUAD_VERTEX_SHADER = """
 attribute vec2 points;
@@ -31,17 +33,77 @@ void main() {
 }
 """
 
+def read_faces_and_vertices_from_obj(path, verbose=False):
+    f = open(path, "r")
+    ret = {}
+    curr_obj = None
+    while True:
+        line = f.readline()
+        if not line:
+            break
+        items = line.rstrip().split()
+        if len(items) <= 1:
+            continue
+        current_mode = items[0]
+        if current_mode == "#":
+            if items[1] == "object":
+                curr_obj = items[2]
+                if verbose:
+                    print "Parsing object: %s" % curr_obj
+                ret[curr_obj] = {
+                    "vertices": [],
+                    "faces": []
+                }
+        elif current_mode == "v":
+            ret[curr_obj]["vertices"].append(map(lambda x : float(x), items[1:]))
+        elif current_mode == "f":
+            ret[curr_obj]["faces"].append(map(lambda x : int(abs(x)), items[1:4]))
+    return ret
+
+def read_points_from_ply(fname):
+    vertices = []
+    header_ended = False
+    with open(fname, "r") as f:
+        for line in f.readlines():
+            line = line.rstrip()
+            if header_ended:
+                vertices.append(map(float, line.split()))
+            elif line == "end_header":
+                header_ended = True
+            else:
+                continue
+    return vertices
+
 def nearest_pow2(aSize):
     return math.pow(2, round(math.log(aSize) / math.log(2))) 
 
+class VertexAttr:
+    def __init__(self, name):
+        self.name = name
+
+    def set_data(self, vertices):
+        self.vbo = vbo.VBO(np.array(vertices,'f'))
+
+    def load_ply(self, fname):
+        self.vbo = vbo.VBO(np.array(read_points_from_ply(fname),'f'))
+
+    def bind(self, program=None):
+        loc = glGetAttribLocation(program, self.name)
+        glEnableVertexAttribArray(loc)
+        self.vbo.bind()
+        glVertexAttribPointer(loc, 3, GL_FLOAT, GL_FALSE, 0, self.vbo)
+        self.vbo.unbind()
+
+
 class Texture:
-    def __init__(self, name, tformat=GL_RGBA, wrap=GL_CLAMP_TO_EDGE, tfilter=GL_NEAREST, ttype=GL_UNSIGNED_BYTE):
+    def __init__(self, name, tformat=GL_RGBA, wrap=GL_CLAMP_TO_EDGE, tfilter=GL_NEAREST, ttype=GL_UNSIGNED_BYTE, tinternal_format=GL_RGBA):
         self.name = name
         self.wrap =  wrap
         self.filter = tfilter
         self.format = tformat
         self.type = ttype
         self.texture = glGenTextures(1)
+        self.internal_format = tinternal_format
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
         glBindTexture(GL_TEXTURE_2D, self.texture)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, self.wrap)
@@ -49,14 +111,27 @@ class Texture:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, self.filter)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, self.filter)
 
+    def read(self, width, height):
+        dtype = 'f' if self.type == GL_FLOAT else 'uint8'
+        num_items = width*height*4
+        print dtype
+        print num_items
+        glBindTexture(GL_TEXTURE_2D, self.texture);
+        return glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type)
+
     def blank(self, width, height):
         glBindTexture(GL_TEXTURE_2D, self.texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, self.format, width, height, 0, self.format, self.type, None)
+        glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, None)
 
     def set(self, source, width, height):
         source_copy = np.array(source, copy=True)
         glBindTexture(GL_TEXTURE_2D, self.texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, self.format, width, height, 0, self.format, self.type, source_copy)
+        glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)
+
+    def noise(self, width, height):
+        source_copy = np.array(source, copy=True)
+        glBindTexture(GL_TEXTURE_2D, self.texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)        
 
 class Video:
     def __init__(self, name, video_file, context):
@@ -126,6 +201,9 @@ class Renderer:
         glutInitWindowSize(width, height)
         glutCreateWindow('Visualization')
         glClearColor(0.,0.,0.,0.)
+        glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE)
+        glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE)
+        glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE)
         glEnable(GL_CULL_FACE)
         glEnable(GL_DEPTH_TEST)
         glEnable( GL_PROGRAM_POINT_SIZE )
@@ -134,6 +212,7 @@ class Renderer:
         self.textures = {}
         self.shaders = {}
         self.videos = {}
+        self.attrs = {}
         self.width = float(width)
         self.height = float(height)
         self.isRunning = False
@@ -157,13 +236,24 @@ class Renderer:
             self.videos[name] = Video(name, video_file, self)
         return self._get_video(name)
 
-    def texture(self, name, tformat=GL_RGBA, wrap=GL_CLAMP_TO_EDGE, tfilter=GL_NEAREST, ttype=GL_UNSIGNED_BYTE):
-        self.textures[name] = Texture(name, tformat, wrap, tfilter, ttype)
+    def attr(self, name, source_ply_file=None, vertices=None):
+        if source_ply_file:
+            self.attrs[name] = VertexAttr(name)
+            self.attrs[name].load_ply(source_ply_file)
+        elif vertices:
+            self.attrs[name] = VertexAttr(name)
+            self.attrs[name].set_data(vertices)
+        return self._get_attr(name)
+
+    def texture(self, name, tformat=GL_RGBA, wrap=GL_CLAMP_TO_EDGE, tfilter=GL_NEAREST, ttype=GL_UNSIGNED_BYTE, tinternal_format=GL_RGBA):
+        if name in self.textures:
+            return self._get_texture(name)
+        self.textures[name] = Texture(name, tformat, wrap, tfilter, ttype, tinternal_format)
         self.textures[name].blank(self.width, self.height)
         return self._get_texture(name)
 
     def texture_from_image(self, name, image_path):
-        img = Image.open(image_path)
+        img = Image.open(image_path).convert('RGB')
         img_data = np.array(list(img.getdata()), np.uint8)
         tex = self.texture(name, tformat=GL_RGB)
         tex.set(img_data, img.size[0], img.size[1])
@@ -208,6 +298,10 @@ class Renderer:
         fname ]
         self.pipe = sp.Popen(command, stdin=sp.PIPE)
 
+    def get_pixels(self):
+        buf = glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_UNSIGNED_BYTE)
+        return np.frombuffer(buf, dtype=np.uint8)
+
     def save_frame(self):
         pixel_buffer = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
         self.pipe.stdin.write(pixel_buffer)
@@ -251,9 +345,14 @@ class Renderer:
         return self.textures[name]
 
     def _get_video(self, name):
-        if name not in self.textures:
+        if name not in self.videos:
             raise Exception('Unknown video: ' + str(name))
         return self.videos[name]
+
+    def _get_attr(self, name):
+        if name not in self.attrs:
+            raise Exception('Unknown attrs: ' + str(name))
+        return self.attrs[name]
 
 class VBO:
     def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
@@ -287,17 +386,7 @@ class VBO:
         glDisableClientState(GL_VERTEX_ARRAY)
 
     def load_ply(self, fname):
-        vertices = []
-        header_ended = False
-        with open(fname, "r") as f:
-            for line in f.readlines():
-                line = line.rstrip()
-                if header_ended:
-                    vertices.append(map(float, line.split()))
-                elif line == "end_header":
-                    header_ended = True
-                else:
-                    continue
+        vertices = read_points_from_ply(fname)
         self.set_vertices(vertices)
 
     def size(self):
@@ -364,6 +453,10 @@ class Shader:
         glActiveTexture(GL_TEXTURE0 + self.next_available_unit);
         glBindTexture(GL_TEXTURE_2D, self.ctx.textures[name].texture);
         self.next_available_unit += 1
+        return self
+
+    def attr(self, name):
+        self.ctx.attr(name).bind(self.shader)
         return self
 
     def use(self):
