@@ -7,10 +7,12 @@ from OpenGL.GL.ARB.color_buffer_float import *
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 import subprocess as sp
+import random
 import sys
 import math
 from PIL import Image
 import random
+import pickle
 
 QUAD_VERTEX_SHADER = """
 attribute vec2 points;
@@ -32,6 +34,73 @@ void main() {
     gl_FragColor = texture2D(inputImage, index);
 }
 """
+
+
+
+def parse_triangle_vertex(line):
+    vals = filter(lambda x : len(x) > 0, line.split("/"))
+    return map(lambda x : abs(int(x)) - 1, vals)
+
+def parse_obj_file(path):
+    f = open(path, "r")
+    ret = {}
+    curr_obj = None
+    count = 0
+    while True:
+        line = f.readline()
+        if not line:
+            break
+        items = line.rstrip().split()
+        if len(items) <= 1:
+            continue
+        current_mode = items[0]
+        if current_mode == "#":
+            if items[1] == "object":
+                if curr_obj != None:
+                    # reverse since vertices are indexed via negative indicies
+                    ret[curr_obj]["vertices"].reverse()
+                curr_obj = items[2]
+                count += 1
+                print "Parsing object: %s" % curr_obj
+                ret[curr_obj] = {
+                    "vertices": [],
+                    "texture_coords": [],
+                    "faces": [],
+                    "normals": []
+                }
+        elif current_mode == "v":
+            ret[curr_obj]["vertices"].append(map(lambda x : float(x), items[1:]))
+        elif current_mode == "vn":
+            ret[curr_obj]["normals"].append(map(lambda x : float(x), items[1:]))
+        elif current_mode == "vt":
+            ret[curr_obj]["texture_coords"].append(map(lambda x : float(x), items[1:]))
+        elif current_mode == "f":
+            ret[curr_obj]["faces"].append(map(parse_triangle_vertex, items[1:4]))
+
+    return ret
+
+
+def get_triangles(file, obj_name=None):
+    obj_objects = parse_obj_file(file)
+    if obj_name:
+        tmp_obj_objects = {}
+        tmp_obj_objects[obj_name] = obj_objects[obj_name]
+        obj_objects = tmp_obj_objects
+    vertices = []
+    for obj_name in obj_objects:
+        obj = obj_objects[obj_name]
+        for face in obj["faces"]:
+            a = face[0][0]
+            b = face[1][0]
+            c = face[2][0]
+            va = np.array(obj["vertices"][a])
+            vb = np.array(obj["vertices"][b])
+            vc = np.array(obj["vertices"][c])
+            vertices.append(va)
+            vertices.append(vb)
+            vertices.append(vc)
+    return vertices
+
 
 def read_faces_and_vertices_from_obj(path, verbose=False):
     f = open(path, "r")
@@ -82,10 +151,11 @@ class VertexAttr:
         self.name = name
 
     def set_data(self, vertices):
-        self.vbo = vbo.VBO(np.array(vertices,'f'))
+        self.vertices = vertices
+        self.vbo = vbo.VBO(np.array(vertices,'float32'))
 
     def load_ply(self, fname):
-        self.vbo = vbo.VBO(np.array(read_points_from_ply(fname),'f'))
+        self.set_data(read_points_from_ply(fname))
 
     def bind(self, program=None):
         loc = glGetAttribLocation(program, self.name)
@@ -111,25 +181,27 @@ class Texture:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, self.filter)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, self.filter)
 
+    def dtype(self):
+        return 'float32' if self.type == GL_FLOAT else 'uint8'
+
     def read(self, width, height):
-        dtype = 'f' if self.type == GL_FLOAT else 'uint8'
+        dtype = self.dtype()
         num_items = width*height*4
-        print dtype
-        print num_items
         glBindTexture(GL_TEXTURE_2D, self.texture);
-        return glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type)
+        return np.frombuffer(glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type), np.uint8)
 
     def blank(self, width, height):
+        source_copy = np.array([[0, 0, 0, 255] for i in xrange(0, int(width*height))], copy=True)
         glBindTexture(GL_TEXTURE_2D, self.texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, None)
+        glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)
 
     def set(self, source, width, height):
-        source_copy = np.array(source, copy=True)
+        source_copy = np.array(source, dtype=self.dtype(), copy=True)
         glBindTexture(GL_TEXTURE_2D, self.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)
 
     def noise(self, width, height):
-        source_copy = np.array(source, copy=True)
+        source_copy = np.array([[int(255*random.random()), int(255*random.random()), int(255*random.random()), int(255*random.random())] for i in xrange(0, int(width*height))], copy=True)
         glBindTexture(GL_TEXTURE_2D, self.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)        
 
@@ -182,6 +254,7 @@ class RenderTarget:
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.renderbuffer);
 
+
 class Renderer:
     RES8K = [7680, 4320]
     RES4K = [3840, 2160]
@@ -210,6 +283,7 @@ class Renderer:
         glutDisplayFunc(self.display)
         glMatrixMode(GL_MODELVIEW)
         self.textures = {}
+        self.texture_units = {}
         self.shaders = {}
         self.videos = {}
         self.attrs = {}
@@ -252,6 +326,12 @@ class Renderer:
         self.textures[name].blank(self.width, self.height)
         return self._get_texture(name)
 
+    def get_texture_unit(self, name):
+        if not name in self.texture_units:
+            next_unit = len(self.texture_units) + 1
+            self.texture_units[name] = next_unit
+        return self.texture_units[name]
+
     def texture_from_image(self, name, image_path):
         img = Image.open(image_path).convert('RGB')
         img_data = np.array(list(img.getdata()), np.uint8)
@@ -275,6 +355,7 @@ class Renderer:
 
     def display(self):
         glViewport(0, 0, int(self.width), int(self.height))
+        shaders.glUseProgram(0)
         self.draw()
         glutSwapBuffers()
 
@@ -309,6 +390,7 @@ class Renderer:
     def set_target(self, texture_name=None, render_target=None):
         if texture_name == None:
             glBindFramebuffer(GL_FRAMEBUFFER, 0)
+            glBindTexture(GL_TEXTURE_2D, 0)
         else:
             if not texture_name in self.textures:
                 self.texture(texture_name)
@@ -316,23 +398,42 @@ class Renderer:
                 render_target = self.render_target
             render_target.attach(self.textures[texture_name].texture)
 
-    def render_frames(self, file_name, num_frames=60):
+    def render_frames(self, file_name, num_frames=60, finished_callback=None):
         # set the output file for the renderer:
         self.output_file(file_name)
         self.texture('output')
-        for i in xrange(0, num_frames):
-            print "Writing frame " + str(i)
+        if not finished_callback:
+            for i in xrange(0, num_frames):
+                print "Writing frame " + str(i)
 
-            # Set the target for the rendering pass 
-            # NOTE: If a target is not set, calling `shader.draw()` will render
-            # to the GUI. This isn't desirable when writing video!
-            self.set_target('output')
+                # Set the target for the rendering pass 
+                # NOTE: If a target is not set, calling `shader.draw()` will render
+                # to the GUI. This isn't desirable when writing video!
+                self.set_target('output')
 
-            # call draw
-            self.draw()
+                # call draw
+                self.draw()
 
-            # save the frame
-            self.save_frame()
+                # save the frame
+                self.save_frame()
+
+        else:
+            i = 0
+            while not finished_callback():
+                print "Writing frame " + str(i)
+
+                # Set the target for the rendering pass 
+                # NOTE: If a target is not set, calling `shader.draw()` will render
+                # to the GUI. This isn't desirable when writing video!
+                self.set_target('output')
+
+                # call draw
+                self.draw()
+
+                # save the frame
+                self.save_frame()
+                i+=1
+
 
     def _get_shader(self, name):
         if name not in self.shaders:
@@ -356,6 +457,7 @@ class Renderer:
 
 class VBO:
     def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
+        self.bounds = None
         if not arr:
             arr = [
                 [ -1, 1, 0 ],
@@ -370,15 +472,17 @@ class VBO:
 
     def set_vertices(self, arr):
         self.vertices = arr
-        self.vbo = vbo.VBO(np.array(self.vertices,'f'))
+        self.bounds = None
+        self.vbo = vbo.VBO(np.array(self.vertices,'float32'))
 
     def bind(self):
         self.vbo.bind()
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(self.vbo)
 
-    def draw(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    def draw(self, clear=True):
+        if clear:
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glDrawArrays(self.render_primitive, 0, self.size())
 
     def unbind(self):
@@ -389,6 +493,16 @@ class VBO:
         vertices = read_points_from_ply(fname)
         self.set_vertices(vertices)
 
+    def load_obj(self, fname, obj_name=None):
+        self.set_vertices(get_triangles(fname, obj_name))
+
+    def save(self, fname):
+        pickle.dump(self.vertices, open(fname, "wb"))
+
+    def load(self, fname):
+        vertices = pickle.load(open(fname, "rb"))
+        self.set_vertices(vertices)
+
     def size(self):
         return len(self.vertices)
 
@@ -397,6 +511,20 @@ class VBO:
 
     def read_from_texture(self, texture):
         print "foobar"
+
+
+    def get_bounds(self):
+        if not self.bounds:
+            mins = [None, None, None]
+            maxes = [None, None, None]
+            for pt in self.vertices:
+                for i in xrange(0,3):
+                    mins[i] = min(mins[i], self.vertices[i]) or self.verticies[i]
+                    maxes[i] = max(maxes[i], self.vertices[i])
+
+            self.bounds = (mins, maxes)
+        return self.bounds
+
 
 class Shader:
     def __init__(self, ctx, frag_shader=None, vertex_shader=None, vbo=None):
@@ -449,10 +577,9 @@ class Shader:
     def input(self, name, withName=None, fromShader=None):
         if not withName:
             withName = name
-        self.uniform(withName, self.next_available_unit)
-        glActiveTexture(GL_TEXTURE0 + self.next_available_unit);
+        self.uniform(withName, self.ctx.get_texture_unit(name))
+        glActiveTexture(GL_TEXTURE0 + self.ctx.get_texture_unit(name));
         glBindTexture(GL_TEXTURE_2D, self.ctx.textures[name].texture);
-        self.next_available_unit += 1
         return self
 
     def attr(self, name):
@@ -460,7 +587,6 @@ class Shader:
         return self
 
     def use(self):
-        self.next_available_unit = 0
         shaders.glUseProgram(self.shader)
         self.vbo.bind()
         self.uniform('iResolution', [self.ctx.width, self.ctx.height])
@@ -470,16 +596,16 @@ class Shader:
         self.uniform('iGlobalTime', tick)
         return self
 
-    def draw(self):
-        self.vbo.draw()
+    def draw(self, clear=True):
+        self.vbo.draw(clear)
         self.vbo.unbind()
         shaders.glUseProgram(0)
         return self
 
-    def drawTo(self, target):
+    def drawTo(self, target, clear=True):
         if target != None:
             # bind to the framebuffer
             self.ctx.set_target(target)
-        self.draw()
+        self.draw(clear)
         self.ctx.set_target(None)
         return self
