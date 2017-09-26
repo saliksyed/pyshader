@@ -35,6 +35,15 @@ void main() {
 }
 """
 
+FLIPPED_TEXTURE_FRAG_SHADER = """
+uniform sampler2D inputImage;
+varying vec2 index;
+
+void main() {
+    gl_FragColor = texture2D(inputImage, vec2(index.x, 1.0 - index.y));
+}
+"""
+
 
 
 def parse_triangle_vertex(line):
@@ -80,13 +89,14 @@ def parse_obj_file(path):
     return ret
 
 
-def get_triangles(file, obj_name=None):
+def get_triangles(file, obj_name=None, return_tex_coords=False):
     obj_objects = parse_obj_file(file)
     if obj_name:
         tmp_obj_objects = {}
         tmp_obj_objects[obj_name] = obj_objects[obj_name]
         obj_objects = tmp_obj_objects
     vertices = []
+    texture_coords = []
     for obj_name in obj_objects:
         obj = obj_objects[obj_name]
         for face in obj["faces"]:
@@ -99,7 +109,26 @@ def get_triangles(file, obj_name=None):
             vertices.append(va)
             vertices.append(vb)
             vertices.append(vc)
-    return vertices
+            if return_tex_coords:
+                if "texture_coords" in obj:
+                    ta = obj["texture_coords"][a]
+                    tb = obj["texture_coords"][b]
+                    tc = obj["texture_coords"][c]
+                else:
+                    ta = [0.0,0.0, 0.0]
+                    tb = [0.0,0.0, 0.0]
+                    tc = [0.0,0.0, 0.0]
+                
+                if len(ta) < 3: #force 3D tex coords if 2D found
+                    ta.append(0.0)
+                if len(tb) < 3:
+                    tb.append(0.0)
+                if len(tc) < 3:
+                    tc.append(0.0)
+                texture_coords.append(ta)
+                texture_coords.append(tb)
+                texture_coords.append(tc)
+    return vertices, texture_coords
 
 
 def read_faces_and_vertices_from_obj(path, verbose=False):
@@ -294,6 +323,7 @@ class Renderer:
         self.render_target = RenderTarget(resolution)
         # The default texture shader is used by drawTexture()
         self.shaders['default_texture_shader'] = Shader(self)
+        self.shaders['flipped_texture_shader'] = Shader(self, FLIPPED_TEXTURE_FRAG_SHADER)
         glutIdleFunc(self.idle)
 
     def run(self):
@@ -348,10 +378,15 @@ class Renderer:
         pass
 
 
-    def drawTexture(self, textureName):
-        (self.shader('default_texture_shader')
-            .input(textureName, withName='inputImage')
-            .draw())
+    def drawTexture(self, textureName, flip=False):
+        if flip:
+            (self.shader('flipped_texture_shader')
+                .input(textureName, withName='inputImage')
+                .draw())        
+        else:
+            (self.shader('default_texture_shader')
+                .input(textureName, withName='inputImage')
+                .draw())
 
     def display(self):
         glViewport(0, 0, int(self.width), int(self.height))
@@ -475,6 +510,9 @@ class VBO:
         self.bounds = None
         self.vbo = vbo.VBO(np.array(self.vertices,'float32'))
 
+    def set_tex_coords(self, coords):
+        self.tex_coords = coords
+
     def bind(self):
         self.vbo.bind()
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -494,7 +532,9 @@ class VBO:
         self.set_vertices(vertices)
 
     def load_obj(self, fname, obj_name=None):
-        self.set_vertices(get_triangles(fname, obj_name))
+        vertices, tex_coords = get_triangles(fname, obj_name, True)
+        self.set_vertices(vertices)
+        self.set_tex_coords(tex_coords)
 
     def save(self, fname):
         pickle.dump(self.vertices, open(fname, "wb"))
@@ -519,8 +559,8 @@ class VBO:
             maxes = [None, None, None]
             for pt in self.vertices:
                 for i in xrange(0,3):
-                    mins[i] = min(mins[i], self.vertices[i]) or self.verticies[i]
-                    maxes[i] = max(maxes[i], self.vertices[i])
+                    mins[i] = min(mins[i], pt[i]) or pt[i]
+                    maxes[i] = max(maxes[i], pt[i])
 
             self.bounds = (mins, maxes)
         return self.bounds
@@ -529,12 +569,18 @@ class VBO:
 class Shader:
     def __init__(self, ctx, frag_shader=None, vertex_shader=None, vbo=None):
         if vertex_shader:
-            vertex_shader_str = open(vertex_shader).read()
+            try:
+                vertex_shader_str = open(vertex_shader).read()
+            except:
+                vertex_shader_str = vertex_shader
         else:
             vertex_shader_str = QUAD_VERTEX_SHADER
 
         if frag_shader:
-            frag_shader_str = open(frag_shader).read()
+            try:
+                frag_shader_str = open(frag_shader).read()
+            except:
+                frag_shader_str = frag_shader
         else:
             frag_shader_str = TEXTURE_FRAG_SHADER
         vp = shaders.compileShader(vertex_shader_str, GL_VERTEX_SHADER)
