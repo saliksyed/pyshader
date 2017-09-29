@@ -1,7 +1,6 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 setup(name='pyshader',
       version='1.0',
-      package_dir={'': 'src'},
-      packages=[''],
+      packages=['pyshader'],
       install_requires=['Pillow', 'numpy', 'PyOpenGL']
       )
