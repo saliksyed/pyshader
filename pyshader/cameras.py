@@ -55,7 +55,6 @@ class InterpolatedCamera:
     def from_json(self, json):
         json = json["cameras"]
         self.set_cameras(map(lambda x : Camera().from_json(x), json))
-        print self.cameras
 
     def save(self, fname):
         open(fname, "w").write(json.dumps(self.to_json()))
@@ -102,7 +101,6 @@ class InterpolatedCamera:
     def get_target_pos(self):
         target_pos = [self.eye_pos[0] + self.target_dist * math.cos(self.angle)*math.sin(self.tilt_angle), self.eye_pos[1], self.eye_pos[2] + self.target_dist * math.sin(self.angle)*math.sin(self.tilt_angle)]
         target_pos[1] += self.target_dist * math.cos(self.tilt_angle)
-        print target_pos
         return target_pos
 
     def blend(self, alpha, v1, v2):
@@ -256,7 +254,6 @@ class Camera:
 
     def apply_projection_matrix(self):
         curr_params = self.projection_params
-        print curr_params
         if curr_params["projection"] is "perspective":
             gluPerspective(curr_params["fov"], curr_params["aspect_ratio"], curr_params["near"], curr_params["far"])
         elif curr_params["projection"] is "ortho":
@@ -291,8 +288,8 @@ class Camera:
 
 
 class Editor(Renderer):
-    def __init__(self, resolution):
-        Renderer.__init__(self, resolution)
+    def __init__(self, resolution, init_window=True):
+        Renderer.__init__(self, resolution, init_window)
         self.tick = 0
         self.scale = 1.0
         glutKeyboardFunc(self.move)

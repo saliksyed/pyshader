@@ -1,3 +1,5 @@
+import numpy as np
+
 
 QUAD_VERTEX_SHADER = """
 attribute vec2 points;
@@ -33,12 +35,15 @@ void main() {
 
 def parse_triangle_vertex(line):
     vals = filter(lambda x : len(x) > 0, line.split("/"))
-    return map(lambda x : abs(int(x)) - 1, vals)
+    return map(lambda x : int(x) , vals)
 
-def parse_obj_file(path, obj_name=None):
+def parse_obj_file(path, obj_name=None, scale=1.0):
     f = open(path, "r")
     ret = {}
     curr_obj = None
+    vtx_list = []
+    texcoord_list = []
+    normal_list = []
     count = 0
     while True:
         line = f.readline()
@@ -48,36 +53,39 @@ def parse_obj_file(path, obj_name=None):
         if len(items) <= 1:
             continue
         current_mode = items[0]
-        if curr_obj and obj_name and curr_obj != obj_name:
-            continue
-        if current_mode == "#":
-            if items[1] == "object":
-                if curr_obj != None:
-                    # reverse since vertices are indexed via negative indicies
-                    ret[curr_obj]["vertices"].reverse()
-                curr_obj = items[2]
-                count += 1
-                print("Parsing object: %s" % curr_obj)
-                ret[curr_obj] = {
-                    "vertices": [],
-                    "texture_coords": [],
-                    "faces": [],
-                    "normals": []
-                }
+        if (current_mode == "#" and items[1] == "object") or current_mode=="o":
+            if curr_obj != None:
+                # reverse since vertices are indexed via negative indicies
+                ret[curr_obj]["vtx_offset"] = len(vtx_list)
+                ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
+                ret[curr_obj]["normal_offset"] = len(normal_list)
+            curr_obj = items[-1]
+            count += 1
+            print("Parsing object: %s" % curr_obj)
+            ret[curr_obj] = {
+                "texture_coords": [],
+                "faces": [],
+                "normals": []
+            }
         elif current_mode == "v":
-            ret[curr_obj]["vertices"].append(map(lambda x : float(x), items[1:]))
+            vtx_list.append(map(lambda x : scale*float(x), items[1:]))
         elif current_mode == "vn":
-            ret[curr_obj]["normals"].append(map(lambda x : float(x), items[1:]))
+            normal_list.append(map(lambda x : float(x), items[1:]))
         elif current_mode == "vt":
-            ret[curr_obj]["texture_coords"].append(map(lambda x : float(x), items[1:]))
+            texcoord_list.append(map(lambda x : float(x), items[1:]))
         elif current_mode == "f":
             ret[curr_obj]["faces"].append(map(parse_triangle_vertex, items[1:4]))
 
-    return ret
+    if curr_obj != None:
+        # reverse since vertices are indexed via negative indicies
+        ret[curr_obj]["vtx_offset"] = len(vtx_list)
+        ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
+        ret[curr_obj]["normal_offset"] = len(normal_list)
+    return ret, vtx_list, texcoord_list, normal_list
 
 
-def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False):
-    obj_objects = parse_obj_file(file)
+def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1.0):
+    obj_objects, vtx_list, texcoord_list, normal_list = parse_obj_file(file, scale)
     if obj_name:
         tmp_obj_objects = {}
         tmp_obj_objects[obj_name] = obj_objects[obj_name]
@@ -86,21 +94,53 @@ def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False):
     texture_coords = []
     for obj_name in obj_objects:
         obj = obj_objects[obj_name]
+        vtx_offset = obj_objects[obj_name]["vtx_offset"]
+        texcoord_offset = obj_objects[obj_name]["texcoord_offset"]
+        normal_offset = obj_objects[obj_name]["normal_offset"]
         for face in obj["faces"]:
             a = face[0][0]
             b = face[1][0]
             c = face[2][0]
-            va = np.array(obj["vertices"][a])
-            vb = np.array(obj["vertices"][b])
-            vc = np.array(obj["vertices"][c])
+            if a < 0:
+                a += vtx_offset
+            else:
+                a -= 1
+
+            if b < 0:
+                b += vtx_offset
+            else:
+                b -= 1
+            if c < 0:
+                c += vtx_offset
+            else:
+                c -= 1
+            va = np.array(vtx_list[a])
+            vb = np.array(vtx_list[b])
+            vc = np.array(vtx_list[c])
             vertices.append(va)
             vertices.append(vb)
             vertices.append(vc)
             if return_tex_coords:
                 if "texture_coords" in obj:
-                    ta = obj["texture_coords"][a]
-                    tb = obj["texture_coords"][b]
-                    tc = obj["texture_coords"][c]
+                    a = face[0][1]
+                    b = face[1][1]
+                    c = face[2][1]
+                    if a < 0:
+                        a += texcoord_offset
+                    else:
+                        a -= 1
+
+                    if b < 0:
+                        b += texcoord_offset
+                    else:
+                        b -= 1
+                    if c < 0:
+                        c += texcoord_offset
+                    else:
+                        c -= 1
+                    ta = texcoord_list[a]
+                    tb = texcoord_list[b]
+                    tc = texcoord_list[c]
                 else:
                     ta = [0.0,0.0, 0.0]
                     tb = [0.0,0.0, 0.0]
@@ -117,33 +157,6 @@ def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False):
                 texture_coords.append(tc)
     return vertices, texture_coords
 
-
-def read_faces_and_vertices_from_obj(path, verbose=False):
-    f = open(path, "r")
-    ret = {}
-    curr_obj = None
-    while True:
-        line = f.readline()
-        if not line:
-            break
-        items = line.rstrip().split()
-        if len(items) <= 1:
-            continue
-        current_mode = items[0]
-        if current_mode == "#":
-            if items[1] == "object":
-                curr_obj = items[2]
-                if verbose:
-                    print("Parsing object: %s" % curr_obj)
-                ret[curr_obj] = {
-                    "vertices": [],
-                    "faces": []
-                }
-        elif current_mode == "v":
-            ret[curr_obj]["vertices"].append(map(lambda x : float(x), items[1:]))
-        elif current_mode == "f":
-            ret[curr_obj]["faces"].append(map(lambda x : int(abs(x)), items[1:4]))
-    return ret
 
 def read_points_from_ply(fname):
     vertices = []

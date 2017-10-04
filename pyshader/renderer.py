@@ -26,22 +26,11 @@ class Renderer:
     RES1280 = [1280, 800]
     RES1440 = [1440, 900]
     RES1920 = [1920, 1200]
-    def __init__(self, resolution):
+    def __init__(self, resolution, init_window=True):
         width = resolution[0]
         height = resolution[1]
-        glutInit(sys.argv)
-        glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH)
-        glutInitWindowSize(width, height)
-        glutCreateWindow('Visualization')
-        glClearColor(0.,0.,0.,0.)
-        glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE)
-        glClampColorARB(GL_CLAMP_READ_COLOR_ARB, GL_FALSE)
-        glClampColorARB(GL_CLAMP_FRAGMENT_COLOR_ARB, GL_FALSE)
-        glEnable(GL_CULL_FACE)
-        glEnable(GL_DEPTH_TEST)
-        glEnable( GL_PROGRAM_POINT_SIZE )
-        glutDisplayFunc(self.display)
-        glMatrixMode(GL_MODELVIEW)
+        if init_window:
+            self.init_window(width, height)
         self.textures = {}
         self.texture_units = {}
         self.shaders = {}
@@ -55,7 +44,20 @@ class Renderer:
         # The default texture shader is used by drawTexture()
         self.shaders['default_texture_shader'] = Shader(self)
         self.shaders['flipped_texture_shader'] = Shader(self, FLIPPED_TEXTURE_FRAG_SHADER)
+
+    def init_window(self, width, height):
+        glutInit(sys.argv)
+        glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH)
+        glutInitWindowSize(width, height)
+        glutCreateWindow('Visualization')
+        glClearColor(0.,0.,0.,0.)
+        glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE)
+        glEnable(GL_CULL_FACE)
+        glEnable(GL_DEPTH_TEST)
+        glEnable( GL_PROGRAM_POINT_SIZE )
+        glMatrixMode(GL_MODELVIEW)
         glutIdleFunc(self.idle)
+        glutDisplayFunc(self.display)
 
     def run(self):
         if self.isWriting:

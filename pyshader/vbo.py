@@ -6,6 +6,8 @@ from OpenGL.GL.ARB.color_buffer_float import *
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 from helpers import read_points_from_ply, get_triangles_from_obj
+import pickle
+
 class VBO:
     def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
         self.bounds = None
@@ -47,7 +49,7 @@ class VBO:
         vertices = read_points_from_ply(fname)
         self.set_vertices(vertices)
 
-    def load_obj(self, fname, obj_name=None):
+    def load_obj(self, fname, obj_name=None, scale=1.0):
         vertices, tex_coords = get_triangles_from_obj(fname, obj_name, True)
         self.set_vertices(vertices)
         self.set_tex_coords(tex_coords)

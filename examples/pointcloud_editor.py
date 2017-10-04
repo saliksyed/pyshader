@@ -56,7 +56,40 @@ class PointCloudExample(Editor):
 
 
 
-# Renders the example visualization in a GLUT window
-if __name__ == '__main__':
-    viz = PointCloudExample(Renderer.RES4K)
-    viz.run()
+# # Renders the example visualization in a GLUT window
+
+
+import tkinter as tk
+from tkinter import Label, Button
+
+import threading
+
+class App(threading.Thread):
+
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.start()
+
+    def callback(self):
+        self.root.quit()
+
+    def run(self):
+        self.root = tk.Tk()
+        self.root.protocol("WM_DELETE_WINDOW", self.callback)
+
+        label = tk.Label(self.root, text="Hello World")
+        label.pack()
+
+        self.close_button = Button(self.root, text="Close", command=self.root.quit)
+        self.close_button.pack()
+
+
+        self.root.mainloop()
+
+
+app = App()
+print('Now we can continue running code while mainloop runs!')
+
+
+viz = PointCloudExample(Renderer.RES4K)
+# viz.run()
