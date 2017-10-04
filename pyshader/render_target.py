@@ -12,12 +12,18 @@ class RenderTarget:
         self.height = resolution[1]
         self.framebuffer = glGenFramebuffers(1)
         self.renderbuffer = glGenRenderbuffers(1)
+        self.attached_texture = None
         glBindRenderbuffer(GL_RENDERBUFFER, self.renderbuffer)
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, int(self.width), int(self.height))
         glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
+    def is_floating_point(self):
+        if not self.attached_texture:
+            return False
+        return self.attached_texture.dtype() == 'float32'
 
     def attach(self, texture):
+        self.attached_texture = texture
         glBindFramebuffer(GL_FRAMEBUFFER, self.framebuffer)
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.texture, 0)
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.renderbuffer);

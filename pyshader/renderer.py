@@ -150,10 +150,19 @@ class Renderer:
         self.pipe = sp.Popen(command, stdin=sp.PIPE)
 
     def get_pixels(self):
-        buf = glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_UNSIGNED_BYTE)
-        return np.frombuffer(buf, dtype=np.uint8)
+        # if the texture is floating point switch the data type
+        if self.render_target.is_floating_point():
+            buf = glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_FLOAT)
+            return np.frombuffer(buf, dtype=np.float32)
+        else:
+            buf = glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_UNSIGNED_BYTE)
+            return np.frombuffer(buf, dtype=np.uint8)
 
     def save_frame(self):
+        # if the texture is floating point throw an exception
+        # since it can't be written to video
+        if self.render_target.is_floating_point():
+            raise 'Cannot save floating point framebuffer output to video'
         pixel_buffer = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
         self.pipe.stdin.write(pixel_buffer)
 
@@ -166,7 +175,7 @@ class Renderer:
                 self.texture(texture_name)
             if not render_target:
                 render_target = self.render_target
-            render_target.attach(self.textures[texture_name].texture)
+            render_target.attach(self.textures[texture_name])
 
     def render_frames(self, file_name, num_frames=60, finished_callback=None):
         # set the output file for the renderer:
