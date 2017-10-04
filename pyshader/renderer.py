@@ -7,6 +7,7 @@ from OpenGL.GL.ARB.color_buffer_float import *
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 import sys
+import OpenEXR, array
 from PIL import Image
 from helpers import FLIPPED_TEXTURE_FRAG_SHADER
 from render_target import RenderTarget
@@ -157,6 +158,36 @@ class Renderer:
         else:
             buf = glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_UNSIGNED_BYTE)
             return np.frombuffer(buf, dtype=np.uint8)
+
+    def save_framebuffer_to_image(self, imname):
+        if self.render_target.is_floating_point() and imname.split(".")[-1] != 'exr':
+            raise 'Floating point framebuffer must be saved to .exr format'
+
+        pixels = self.get_pixels()
+        if self.render_target.is_floating_point():
+            # TODO: Is there a better way to read pixels into individual channels
+            # so we're not doing this slow copy operation?
+            r = []
+            g = []
+            b = []
+            for i in xrange(0, len(pixels)/4):
+                r.append(pixels[i * 4])
+                g.append(pixels[i * 4 + 1])
+                b.append(pixels[i * 4 + 2])
+            r = array.array('f', r).tostring()
+            g = array.array('f', g).tostring()
+            b = array.array('f', b).tostring()
+            exr = OpenEXR.OutputFile(imname, OpenEXR.Header(int(self.width), int(self.height)))
+            exr.writePixels({'R': r, 'G': g, 'B': b})
+            exr.close()
+        else:
+            result = Image.fromarray(pixels)
+            result.save(imname)
+
+    def save_texture_to_image(self, texname, imname):
+        self.set_target(texname)
+        self.save_framebuffer_to_image(imname)
+        self.set_target(None)
 
     def save_frame(self):
         # if the texture is floating point throw an exception
