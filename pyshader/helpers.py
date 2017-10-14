@@ -37,7 +37,7 @@ def parse_triangle_vertex(line):
     vals = filter(lambda x : len(x) > 0, line.split("/"))
     return map(lambda x : int(x) , vals)
 
-def parse_obj_file(path, obj_name=None, scale=1.0):
+def parse_obj_file(path, obj_name=None, scale=1.0, translate=[0, 0, 0]):
     f = open(path, "r")
     ret = {}
     curr_obj = None
@@ -68,7 +68,11 @@ def parse_obj_file(path, obj_name=None, scale=1.0):
                 "normals": []
             }
         elif current_mode == "v":
-            vtx_list.append(map(lambda x : scale*float(x), items[1:]))
+            vtx = map(lambda x : scale*float(x), items[1:])
+            vtx[0] += translate[0]
+            vtx[1] += translate[1]
+            vtx[2] += translate[2]
+            vtx_list.append(vtx)
         elif current_mode == "vn":
             normal_list.append(map(lambda x : float(x), items[1:]))
         elif current_mode == "vt":
@@ -84,8 +88,8 @@ def parse_obj_file(path, obj_name=None, scale=1.0):
     return ret, vtx_list, texcoord_list, normal_list
 
 
-def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1.0):
-    obj_objects, vtx_list, texcoord_list, normal_list = parse_obj_file(file, scale)
+def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1.0, translate=[0, 0, 0]):
+    obj_objects, vtx_list, texcoord_list, normal_list = parse_obj_file(file, scale=scale, translate=translate)
     if obj_name:
         tmp_obj_objects = {}
         tmp_obj_objects[obj_name] = obj_objects[obj_name]
@@ -121,7 +125,7 @@ def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1
             vertices.append(vb)
             vertices.append(vc)
             if return_tex_coords:
-                if "texture_coords" in obj:
+                if "texture_coords" in obj and len(face[0])>1:
                     a = face[0][1]
                     b = face[1][1]
                     c = face[2][1]

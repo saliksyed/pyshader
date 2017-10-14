@@ -164,6 +164,7 @@ class Renderer:
             raise 'Floating point framebuffer must be saved to .exr format'
 
         pixels = self.get_pixels()
+        print pixels
         if self.render_target.is_floating_point():
             # TODO: Is there a better way to read pixels into individual channels
             # so we're not doing this slow copy operation?
