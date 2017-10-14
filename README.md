@@ -4,7 +4,7 @@ pyshader : OpenGL shaders made easy
 ### Features
 * Quickly build shader pipelines: shader1->shader2->shader3
 * Easily import video and images into shaders as textures
-* Write shader output to MPEG video
+* Write shader output to MPEG video, EXR (floating point images) or a variety of other formats (JPEG, PNG)
 * Preview shader output using GLUT
 
 ### Usage
@@ -57,9 +57,10 @@ sudo python setup.py install
 NOTE: If you want to use videos you must have ffmpeg installed and in your path.
 
 ### Dependencies
-* PyOpenGL (https://github.com/mcfletch/pyopengl)
-* Pillow (PIL) (https://github.com/python-pillow/Pillow)
-* numpy (https://github.com/numpy/numpy)
+* PyOpenGL(https://github.com/mcfletch/pyopengl)
+* Pillow(https://github.com/python-pillow/Pillow)
+* numpy(https://github.com/numpy/numpy)
+* OpenEXR(http://www.excamera.com/sphinx/articles-openexr.html)
 
 (these will automatically be installed by the setup script)
 
@@ -75,6 +76,6 @@ is needed to get the different features (audio).
   videos are stored using texture names so you can't have 
   both a texture and a video named 'foobar' for example.
 
-Inspired by shadertoy (http://www.shadertoy.com) and igloojs (https://github.com/skeeto/igloojs)
+Inspired by shadertoy(http://www.shadertoy.com) and igloojs(https://github.com/skeeto/igloojs)
 
-Licensed under GPL 3.0 (https://www.gnu.org/licenses/gpl-3.0.en.html)
+Licensed under GPL 3.0(https://www.gnu.org/licenses/gpl-3.0.en.html)
