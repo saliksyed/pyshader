@@ -88,7 +88,7 @@ def parse_obj_file(path, obj_name=None, scale=1.0, translate=[0, 0, 0]):
     return ret, vtx_list, texcoord_list, normal_list
 
 
-def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1.0, translate=[0, 0, 0]):
+def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, return_normals=False, scale=1.0, translate=[0, 0, 0]):
     obj_objects, vtx_list, texcoord_list, normal_list = parse_obj_file(file, scale=scale, translate=translate)
     if obj_name:
         tmp_obj_objects = {}
@@ -96,6 +96,7 @@ def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1
         obj_objects = tmp_obj_objects
     vertices = []
     texture_coords = []
+    normals = []
     for obj_name in obj_objects:
         obj = obj_objects[obj_name]
         vtx_offset = obj_objects[obj_name]["vtx_offset"]
@@ -156,10 +157,46 @@ def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, scale=1
                     tb.append(0.0)
                 if len(tc) < 3:
                     tc.append(0.0)
-                texture_coords.append(ta)
-                texture_coords.append(tb)
-                texture_coords.append(tc)
-    return vertices, texture_coords
+                texture_coords.append(np.array(ta))
+                texture_coords.append(np.array(tb))
+                texture_coords.append(np.array(tc))
+
+            if return_normals:
+                if "normals" in obj and len(face[0])>2:
+                    a = face[0][2]
+                    b = face[1][2]
+                    c = face[2][2]
+                    if a < 0:
+                        a += normal_offset
+                    else:
+                        a -= 1
+
+                    if b < 0:
+                        b += normal_offset
+                    else:
+                        b -= 1
+                    if c < 0:
+                        c += normal_offset
+                    else:
+                        c -= 1
+                    ta = normal_list[a]
+                    tb = normal_list[b]
+                    tc = normal_list[c]
+                else:
+                    ta = [0.0,0.0, 0.0]
+                    tb = [0.0,0.0, 0.0]
+                    tc = [0.0,0.0, 0.0]
+                
+                if len(ta) < 3: #force 3D tex coords if 2D found
+                    ta.append(0.0)
+                if len(tb) < 3:
+                    tb.append(0.0)
+                if len(tc) < 3:
+                    tc.append(0.0)
+                normals.append(np.array(ta))
+                normals.append(np.array(tb))
+                normals.append(np.array(tc))
+    return vertices, texture_coords, normals
 
 
 def read_points_from_ply(fname):

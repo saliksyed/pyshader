@@ -32,12 +32,14 @@ class Example(Renderer):
 
         # We first render the light using horizontal_light.frag into a texture
         (self.shader('lights')
+                .use()
                 .tick(self.tick)
                 .drawTo('light_rendered'))
 
         # Next we pass the rendered light into the heat blur shader, along with the video texture
         # representing the heat:
         (self.shader('heat_blur')
+                .use()
                 .input('heat_texture', withName='iChannel0')
                 .input('light_rendered', withName='iChannel1')
                 .tick(self.tick)

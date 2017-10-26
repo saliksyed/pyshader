@@ -33,7 +33,10 @@ class Texture:
         dtype = self.dtype()
         num_items = width*height*4
         glBindTexture(GL_TEXTURE_2D, self.texture);
-        return np.frombuffer(glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type), np.uint8)
+        if dtype == 'uint8':
+            return np.frombuffer(glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type), np.uint8)
+        else:
+            return np.frombuffer(glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type), np.float32)
 
     def blank(self, width, height):
         source_copy = np.array([[0, 0, 0, 255] for i in xrange(0, int(width*height))], copy=True)

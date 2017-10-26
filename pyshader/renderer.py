@@ -7,6 +7,7 @@ from OpenGL.GL.ARB.color_buffer_float import *
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 import sys
+import subprocess as sp
 import OpenEXR, array
 from PIL import Image
 from helpers import FLIPPED_TEXTURE_FRAG_SHADER
@@ -14,7 +15,10 @@ from render_target import RenderTarget
 from texture import Texture
 from shader import Shader
 from video import Video
+from audio import Audio
 from vertex_attr import VertexAttr
+import threading
+import traceback
 
 class Renderer:
     RES8K = [7680, 4320]
@@ -36,6 +40,7 @@ class Renderer:
         self.texture_units = {}
         self.shaders = {}
         self.videos = {}
+        self.audio_tracks = {}
         self.attrs = {}
         self.width = float(width)
         self.height = float(height)
@@ -45,6 +50,8 @@ class Renderer:
         # The default texture shader is used by drawTexture()
         self.shaders['default_texture_shader'] = Shader(self)
         self.shaders['flipped_texture_shader'] = Shader(self, FLIPPED_TEXTURE_FRAG_SHADER)
+        self.shader_args = {}
+        self.render_lock = threading.Semaphore()
 
     def init_window(self, width, height):
         glutInit(sys.argv)
@@ -106,8 +113,26 @@ class Renderer:
 
     def shader(self, name, frag_shader=None, vertex_shader=None, vbo=None):
         if vertex_shader != None or frag_shader != None:
+            self.shader_args[name] = [name, frag_shader, vertex_shader, vbo]
             self.shaders[name] = Shader(self, frag_shader, vertex_shader, vbo)
         return self._get_shader(name)
+
+    def audio(self, name, filename=None, paused=False):
+        if filename != None:
+            self.audio_tracks[name] = Audio(filename, paused)
+        return self._get_audio(name)
+
+    def reload_shader(self, name):
+        with self.render_lock:
+            if name in self.shader_args:
+                new_shader = self.shader(*self.shader_args[name])
+                return new_shader
+            else:
+                raise 'Error tried to reload non-existant shader'
+
+    def reload_all_shaders(self):
+        for name in self.shader_args.keys():
+            self.reload_shader(name)
 
     def draw(self):
         # sub class must implement!
@@ -116,19 +141,24 @@ class Renderer:
 
     def drawTexture(self, textureName, flip=False):
         if flip:
-            (self.shader('flipped_texture_shader')
+            (self.shader('flipped_texture_shader').use()
                 .input(textureName, withName='inputImage')
                 .draw())        
         else:
-            (self.shader('default_texture_shader')
+            (self.shader('default_texture_shader').use()
                 .input(textureName, withName='inputImage')
                 .draw())
 
     def display(self):
-        glViewport(0, 0, int(self.width), int(self.height))
-        shaders.glUseProgram(0)
-        self.draw()
-        glutSwapBuffers()
+        with self.render_lock:
+            glViewport(0, 0, int(self.width), int(self.height))
+            shaders.glUseProgram(0)
+            try:
+                self.draw()
+            except:
+                print "Render error!"
+                traceback.print_exc()
+            glutSwapBuffers()
 
     def output_file(self, fname):
         self.isWriting = True
@@ -182,7 +212,7 @@ class Renderer:
             exr.writePixels({'R': r, 'G': g, 'B': b})
             exr.close()
         else:
-            result = Image.fromarray(pixels)
+            result = Image.frombuffer("RGBA", (int(self.width), int(self.height)),pixels)
             result.save(imname)
 
     def save_texture_to_image(self, texname, imname):
@@ -245,11 +275,16 @@ class Renderer:
                 self.save_frame()
                 i+=1
 
+    def _get_audio(self, name):
+        if name not in self.audio_tracks:
+            raise Exception('Unknown audio: ' + str(name))
+        return self.audio_tracks[name]
+
 
     def _get_shader(self, name):
         if name not in self.shaders:
             raise Exception('Unknown shader: ' + str(name))
-        return self.shaders[name].use()
+        return self.shaders[name]
 
     def _get_texture(self, name):
         if name not in self.textures:

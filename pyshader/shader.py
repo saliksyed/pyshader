@@ -76,7 +76,7 @@ class Shader:
         self.ctx.attr(name).bind(self.shader)
         return self
 
-    def use(self):
+    def use(self, vbo=None):
         shaders.glUseProgram(self.shader)
         self.vbo.bind()
         self.uniform('iResolution', [self.ctx.width, self.ctx.height])

@@ -4,11 +4,14 @@ from OpenGL.GLUT import *
 from OpenGL.arrays import vbo
 from OpenGL.GL.ARB.color_buffer_float import * 
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
+from helpers import read_points_from_ply
 import numpy as np
 
 class VertexAttr:
-    def __init__(self, name):
+    def __init__(self, name, vertices=None):
         self.name = name
+        if vertices != None:
+            self.set_data(vertices)
 
     def set_data(self, vertices):
         self.vertices = vertices

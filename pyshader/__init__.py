@@ -5,5 +5,6 @@ from video import Video
 from vertex_attr import VertexAttr
 from vbo import VBO
 from renderer import Renderer
-from cameras import Editor, Camera, InterpolatedCamera
-__all__ = ['render_target', 'texture', 'shader', 'video', 'vertex_attr', 'video', 'cameras']
+from cameras import Camera, InterpolatedCamera
+from editor import Editor
+__all__ = ['render_target', 'texture', 'shader', 'video', 'vertex_attr', 'video', 'cameras', 'editor']

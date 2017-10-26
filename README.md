@@ -26,11 +26,13 @@ class Example(Renderer):
 
         # render to screen
         (self.shader('lights')
+                .use()
                 .tick(self.tick)
                 .draw()) # <- draw to screen or video frame
 
         # render to texture
         (self.shader('lights')
+                .use()
                 .tick(self.tick)
                 .drawTo('outputTexture')) # <- draw to texture
 
