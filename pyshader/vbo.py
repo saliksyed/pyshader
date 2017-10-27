@@ -6,8 +6,7 @@ from OpenGL.GL.ARB.color_buffer_float import *
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 from helpers import read_points_from_ply, get_triangles_from_obj
-import cPickle as pickle
-import gzip
+import serialized_float_array
 
 class VBO:
     def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
@@ -73,10 +72,10 @@ class VBO:
             data['tex_coords'] = self.tex_coords
         if self.normals != None:
             data['normals'] = self.normals
-        pickle.dump(data, open(fname, "wb"), 1)
+        serialized_float_array.dump(data, fname)
 
     def load(self, fname):
-        data = pickle.load(open(fname, "rb"))
+        data = serialized_float_array.load(fname)
         self.set_vertices(data['vertices'])
         if 'normals' in data:
             self.set_normals(data['normals'])

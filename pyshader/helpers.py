@@ -85,6 +85,11 @@ def parse_obj_file(path, obj_name=None, scale=1.0, translate=[0, 0, 0]):
         ret[curr_obj]["vtx_offset"] = len(vtx_list)
         ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
         ret[curr_obj]["normal_offset"] = len(normal_list)
+    else:
+        curr_obj = "default"
+        ret[curr_obj]["vtx_offset"] = len(vtx_list)
+        ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
+        ret[curr_obj]["normal_offset"] = len(normal_list)
     return ret, vtx_list, texcoord_list, normal_list
 
 
