@@ -6,7 +6,9 @@ from OpenGL.GL.ARB.color_buffer_float import *
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
 import numpy as np
 from helpers import read_points_from_ply, get_triangles_from_obj
-import serialized_float_array
+from array import array
+import json
+import gzip
 
 class VBO:
     def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
@@ -65,6 +67,38 @@ class VBO:
         self.set_tex_coords(tex_coords)
         self.set_normals(normals)
 
+    def _read_raw_data(self, filename):
+        input_file = gzip.open(filename, 'rb')
+        line = input_file.readline()
+        header = json.loads(line)
+        # TODO: shouldn't be hard coded
+        FLOAT_SIZE_BYTES = 8
+        ret = {}
+        for key in header:
+            float_array = array('d')
+            float_array.fromstring(input_file.read(header[key]*FLOAT_SIZE_BYTES))
+            vertices = []
+            for i in xrange(0, len(float_array)/3):
+                vertices.append([float_array[i*3], float_array[i*3 + 1], float_array[i*3 + 2]])
+            ret[key] = vertices
+        return ret
+
+    def _write_raw_data(self, data, filename):
+        header = {}
+        for key in data:
+            header[key] = len(data[key]) * 3
+        header_str = json.dumps(header) + '\n'
+
+        output_file = gzip.open(filename, 'wb')
+        output_file.write(header_str.encode('ascii'))
+        for key in data:
+            flattened = []
+            for sample in data[key]:
+                flattened += sample
+            float_array = array('d', flattened)
+            output_file.write(float_array.tostring())
+        output_file.close()
+        
     def save(self, fname):
         data = {}
         data['vertices'] = self.vertices
@@ -72,10 +106,10 @@ class VBO:
             data['tex_coords'] = self.tex_coords
         if self.normals != None:
             data['normals'] = self.normals
-        serialized_float_array.dump(data, fname)
+        self._write_raw_data(data, fname)
 
     def load(self, fname):
-        data = serialized_float_array.load(fname)
+        data = self._read_raw_data(fname)
         self.set_vertices(data['vertices'])
         if 'normals' in data:
             self.set_normals(data['normals'])
@@ -104,3 +138,18 @@ class VBO:
             self.bounds = (mins, maxes)
         return self.bounds
 
+if __name__ == '__main__':
+    # simple sanity check:
+    a = VBO()
+    a.vertices = [[1.,2.,3.],[4.,5.,6.]]
+    a.tex_coords = [[5.,5.,5.],[7.,5.,6.]]
+    a.normals = [[1.,1.,1.],[1.,1.,1.]]
+    a.save('/tmp/test.vbo')
+    b = VBO()
+    b.load('/tmp/test.vbo')
+    print b.vertices
+    print b.tex_coords
+    print b.normals
+    print a.vertices
+    print a.tex_coords
+    print a.normals
