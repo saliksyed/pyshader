@@ -11,13 +11,13 @@ import json
 import gzip
 
 class VBO:
-    def __init__(self, render_primitive=GL_TRIANGLES, arr=None):
+    def __init__(self, render_primitive=GL_TRIANGLES, vertices=None):
         self.bounds = None
         self.tex_coords = None
         self.normals = None
         self.vertices = None
-        if not arr:
-            arr = [
+        if not vertices:
+            vertices = [
                 [ -1, 1, 0 ],
                 [ -1,-1, 0 ],
                 [  1,-1, 0 ],
@@ -25,7 +25,7 @@ class VBO:
                 [  1,-1, 0 ],
                 [  1, 1, 0 ]
             ]
-        self.set_vertices(arr)
+        self.set_vertices(vertices)
         self.render_primitive=render_primitive
 
     def set_vertices(self, arr):
@@ -94,7 +94,7 @@ class VBO:
         for key in data:
             flattened = []
             for sample in data[key]:
-                flattened += sample
+                flattened += [sample[0], sample[1], sample[2]]
             float_array = array('d', flattened)
             output_file.write(float_array.tostring())
         output_file.close()

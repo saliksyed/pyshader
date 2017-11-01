@@ -4,21 +4,13 @@ from OpenGL.GLUT import *
 from OpenGL.arrays import vbo
 from OpenGL.GL.ARB.color_buffer_float import * 
 from OpenGL.raw.GL.ARB.color_buffer_float import * 
-from helpers import read_points_from_ply
+from vbo import VBO
 import numpy as np
 
-class VertexAttr:
+class VertexAttr(VBO):
     def __init__(self, name, vertices=None):
+        VBO.__init__(self, GL_POINTS, vertices=vertices)
         self.name = name
-        if vertices != None:
-            self.set_data(vertices)
-
-    def set_data(self, vertices):
-        self.vertices = vertices
-        self.vbo = vbo.VBO(np.array(vertices,'float32'))
-
-    def load_ply(self, fname):
-        self.set_data(read_points_from_ply(fname))
 
     def bind(self, program=None):
         loc = glGetAttribLocation(program, self.name)
@@ -26,3 +18,9 @@ class VertexAttr:
         self.vbo.bind()
         glVertexAttribPointer(loc, 3, GL_FLOAT, GL_FALSE, 0, self.vbo)
         self.vbo.unbind()
+
+    def unbind(self):
+        raise 'Cannot unbind vertex attribute'
+
+    def draw(self, clear=True):
+        raise 'Cannot draw vertex attribute'

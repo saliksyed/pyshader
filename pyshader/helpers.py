@@ -45,6 +45,8 @@ def parse_obj_file(path, obj_name=None, scale=1.0, translate=[0, 0, 0]):
     texcoord_list = []
     normal_list = []
     count = 0
+    last_mode = None
+    default_count = 0
     while True:
         line = f.readline()
         if not line:
@@ -61,13 +63,32 @@ def parse_obj_file(path, obj_name=None, scale=1.0, translate=[0, 0, 0]):
                 ret[curr_obj]["normal_offset"] = len(normal_list)
             curr_obj = items[-1]
             count += 1
-            print("Parsing object: %s" % curr_obj)
             ret[curr_obj] = {
                 "texture_coords": [],
                 "faces": [],
                 "normals": []
             }
         elif current_mode == "v":
+            # handle the case where no name is specified
+            if curr_obj == None:
+                curr_obj = "default" + str(default_count)
+                ret[curr_obj] = {
+                    "texture_coords": [],
+                    "faces": [],
+                    "normals": []
+                }
+                default_count += 1
+            elif last_mode=="f":
+                ret[curr_obj]["vtx_offset"] = len(vtx_list)
+                ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
+                ret[curr_obj]["normal_offset"] = len(normal_list)
+                default_count += 1
+                curr_obj = "default" + str(default_count)
+                ret[curr_obj] = {
+                    "texture_coords": [],
+                    "faces": [],
+                    "normals": []
+                }
             vtx = map(lambda x : scale*float(x), items[1:])
             vtx[0] += translate[0]
             vtx[1] += translate[1]
@@ -79,22 +100,15 @@ def parse_obj_file(path, obj_name=None, scale=1.0, translate=[0, 0, 0]):
             texcoord_list.append(map(lambda x : float(x), items[1:]))
         elif current_mode == "f":
             ret[curr_obj]["faces"].append(map(parse_triangle_vertex, items[1:4]))
-
+        last_mode = current_mode
     if curr_obj != None:
-        # reverse since vertices are indexed via negative indicies
-        ret[curr_obj]["vtx_offset"] = len(vtx_list)
-        ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
-        ret[curr_obj]["normal_offset"] = len(normal_list)
-    else:
-        curr_obj = "default"
         ret[curr_obj]["vtx_offset"] = len(vtx_list)
         ret[curr_obj]["texcoord_offset"] = len(texcoord_list)
         ret[curr_obj]["normal_offset"] = len(normal_list)
     return ret, vtx_list, texcoord_list, normal_list
 
 
-def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, return_normals=False, scale=1.0, translate=[0, 0, 0]):
-    obj_objects, vtx_list, texcoord_list, normal_list = parse_obj_file(file, scale=scale, translate=translate)
+def get_triangles(obj_objects, vtx_list, texcoord_list, normal_list, obj_name=None, return_tex_coords=False, return_normals=False):
     if obj_name:
         tmp_obj_objects = {}
         tmp_obj_objects[obj_name] = obj_objects[obj_name]
@@ -201,6 +215,11 @@ def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, return_
                 normals.append(np.array(ta))
                 normals.append(np.array(tb))
                 normals.append(np.array(tc))
+    return vertices, texture_coords, normals
+
+def get_triangles_from_obj(file, obj_name=None, return_tex_coords=False, return_normals=False, scale=1.0, translate=[0, 0, 0]):
+    obj_objects, vtx_list, texcoord_list, normal_list = parse_obj_file(file, scale=scale, translate=translate)
+    vertices, texture_coords, normals = get_triangles(obj_objects, vtx_list, texcoord_list, normal_list, obj_name, return_tex_coords, return_normals)
     return vertices, texture_coords, normals
 
 

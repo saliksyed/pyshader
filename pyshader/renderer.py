@@ -1,6 +1,7 @@
 from OpenGL.GLU import *
 from OpenGL.GL import *
 from OpenGL.GLUT import *
+from OpenGL.GLUT.freeglut import glutLeaveMainLoop
 from OpenGL.arrays import vbo
 from OpenGL.GL import shaders
 from OpenGL.GL.ARB.color_buffer_float import * 
@@ -57,7 +58,7 @@ class Renderer:
         glutInit(sys.argv)
         glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH)
         glutInitWindowSize(width, height)
-        glutCreateWindow('Visualization')
+        self.window_id = glutCreateWindow('Visualization')
         glClearColor(0.,0.,0.,0.)
         glClampColor(GL_CLAMP_READ_COLOR, GL_FALSE)
         glEnable(GL_CULL_FACE)
@@ -81,8 +82,11 @@ class Renderer:
             self.videos[name] = Video(name, video_file, self)
         return self._get_video(name)
 
-    def attr(self, name, source_ply_file=None, vertices=None):
-        if source_ply_file:
+    def attr(self, name, source_saved_file=None, source_ply_file=None, vertices=None):
+        if source_saved_file:
+            self.attrs[name] = VertexAttr(name)
+            self.attrs[name].load(source_saved_file)
+        elif source_ply_file:
             self.attrs[name] = VertexAttr(name)
             self.attrs[name].load_ply(source_ply_file)
         elif vertices:
@@ -129,6 +133,10 @@ class Renderer:
                 return new_shader
             else:
                 raise 'Error tried to reload non-existant shader'
+
+    def exit(self):
+        glutLeaveMainLoop()
+        glutDestroyWindow(self.window_id)
 
     def reload_all_shaders(self):
         for name in self.shader_args.keys():
