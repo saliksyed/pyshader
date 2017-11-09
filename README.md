@@ -66,6 +66,10 @@ NOTE: If you want to use videos you must have ffmpeg installed and in your path.
 
 (these will automatically be installed by the setup script)
 
+### Installing on Linux: 
+You will need to install a few required packages using apt-get:
+* sudo apt-get install python-dev libasound-dev python-pyaudio openexr libopenexr-dev
+
 
 ### Notes
 The library is a work in progress and is aimed primarily at 2D or computational shaders, 
