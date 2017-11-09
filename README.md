@@ -69,7 +69,7 @@ NOTE: If you want to use videos you must have ffmpeg installed and in your path.
 ### Installing on Linux: 
 You will need to install a few required packages using apt-get before running the setup script (instructions for Ubuntu):
 ```
-sudo apt-get install python-dev libasound-dev python-pyaudio openexr libopenexr-dev zlib1g-dev libjpeg-dev
+sudo apt-get install python-dev libasound-dev python-pyaudio openexr libopenexr-dev zlib1g-dev libjpeg-dev freeglut3 freeglut3-dev
 ```
 
 
