@@ -4,6 +4,7 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import * 
 from OpenGL.GLUT.freeglut import *
 from renderer import Renderer
+import pyrr
 import math
 import random
 import json
@@ -45,6 +46,9 @@ class InterpolatedCamera:
     def set_projection(self, params):
         for camera in self.cameras:
             camera.set_projection(params)
+
+    def set_on_finish(self, callback):
+        self.on_finish_callback = callback
 
     def to_json(self):
         ret = []
@@ -134,7 +138,7 @@ class InterpolatedCamera:
         self.target_dist = self.blend(alpha, self.current_camera().target_dist, self.target_camera().target_dist)
         self.tilt_angle = self.blend(alpha, self.current_camera().tilt_angle, self.target_camera().tilt_angle)
 
-    def apply_matrix(self):
+    def apply_matrix(self, aperture=None, bokeh_theta=None):
         target_pos = self.get_target_pos()
         gluLookAt(self.eye_pos[0], self.eye_pos[1], self.eye_pos[2], target_pos[0], target_pos[1], target_pos[2], 0, 1., 0)
 
@@ -236,9 +240,17 @@ class Camera:
     def zoom(self, amount):
         self.target_dist += amount
 
-    def apply_matrix(self):
+    def apply_matrix(self, aperture=None, bokeh_theta=None):
         target_pos = self.get_target_pos()
-        gluLookAt(self.eye_pos[0], self.eye_pos[1], self.eye_pos[2], target_pos[0], target_pos[1], target_pos[2], 0, 1., 0)
+        offset = [0, 0, 0]
+        if aperture and bokeh_theta:
+            up = pyrr.vector3.create(0, 1.0, 0.0)
+            target = pyrr.vector3.create(target_pos[0], target_pos[1], target_pos[2])
+            eye = pyrr.vector3.create(self.eye_pos[0], self.eye_pos[1], self.eye_pos[2])
+            right = pyrr.vector.normalise(pyrr.vector3.cross(target - eye, up))
+            p_up = pyrr.vector.normalise(pyrr.vector3.cross(target - eye, right))
+            offset = math.cos(bokeh_theta) * right + math.sin(bokeh_theta) * p_up;
+        gluLookAt(self.eye_pos[0] + offset[0], self.eye_pos[1] + offset[1], self.eye_pos[2] + offset[2], target_pos[0], target_pos[1], target_pos[2], 0, 1., 0)
 
     def set_projection(self, curr_params):
         if curr_params == None:

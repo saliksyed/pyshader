@@ -7,8 +7,10 @@ from OpenGL.raw.GL.ARB.color_buffer_float import *
 import numpy as np
 from helpers import read_points_from_ply, get_triangles_from_obj
 from array import array
+import random
 import json
 import gzip
+import time
 
 class VBO:
     def __init__(self, render_primitive=GL_TRIANGLES, vertices=None):
@@ -33,6 +35,10 @@ class VBO:
         self.bounds = None
         self.vbo = vbo.VBO(np.array(self.vertices,'float32'))
 
+    def update_vertices(self):
+        self.bounds = None
+        self.vbo = vbo.VBO(np.array(self.vertices,'float32'))
+
     def set_tex_coords(self, coords):
         self.tex_coords = coords
 
@@ -43,6 +49,21 @@ class VBO:
         self.vbo.bind()
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(self.vbo)
+
+    def random_sample(self, num):
+        if self.render_primitive == GL_TRIANGLES:
+            idxs = random.sample(range(0, len(self.vertices)/3))
+            tris = []
+            for idx in idxs:                
+                tris += self.vertices[idx*3]
+                tris += self.vertices[idx*3 + 1]
+                tris += self.vertices[idx*3 + 2]
+            self.set_vertices(tris)
+        else:
+            if len(self.vertices) < num:
+                return
+            self.vertices = random.sample(self.vertices, num)
+            self.update_vertices()
 
     def draw(self, clear=True):
         if clear:
@@ -77,9 +98,7 @@ class VBO:
         for key in header:
             float_array = array('d')
             float_array.fromstring(input_file.read(header[key]*FLOAT_SIZE_BYTES))
-            vertices = []
-            for i in xrange(0, len(float_array)/3):
-                vertices.append([float_array[i*3], float_array[i*3 + 1], float_array[i*3 + 2]])
+            vertices = np.reshape(float_array, (len(float_array)/3, 3))
             ret[key] = vertices
         return ret
 

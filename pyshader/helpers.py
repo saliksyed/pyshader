@@ -13,6 +13,7 @@ void main() {
 }
 """
 
+
 TEXTURE_FRAG_SHADER = """
 uniform sampler2D inputImage;
 varying vec2 index;

@@ -25,6 +25,7 @@ class Renderer:
     RES8K = [7680, 4320]
     RES4K = [3840, 2160]
     RES720P = [1280, 720]
+    RES360 = [640, 360]
     RES1440P = [2560, 1440]
     RES1080P = [1920, 1080]
     RES1024 = [1024, 768]
@@ -48,6 +49,7 @@ class Renderer:
         self.isRunning = False
         self.isWriting = False
         self.render_target = RenderTarget(resolution)
+        self.rendered_frames = 0
         # The default texture shader is used by drawTexture()
         self.shaders['default_texture_shader'] = Shader(self)
         self.shaders['flipped_texture_shader'] = Shader(self, FLIPPED_TEXTURE_FRAG_SHADER)
@@ -56,7 +58,7 @@ class Renderer:
 
     def init_window(self, width, height):
         glutInit(sys.argv)
-        glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH)
+        glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_ACCUM | GLUT_DEPTH)
         glutInitWindowSize(width, height)
         self.window_id = glutCreateWindow('Visualization')
         glClearColor(0.,0.,0.,0.)
@@ -91,7 +93,7 @@ class Renderer:
             self.attrs[name].load_ply(source_ply_file)
         elif vertices:
             self.attrs[name] = VertexAttr(name)
-            self.attrs[name].set_data(vertices)
+            self.attrs[name].set_vertices(vertices)
         return self._get_attr(name)
 
     def texture(self, name, tformat=GL_RGBA, wrap=GL_CLAMP_TO_EDGE, tfilter=GL_NEAREST, ttype=GL_UNSIGNED_BYTE, tinternal_format=GL_RGBA):
@@ -166,6 +168,7 @@ class Renderer:
             except:
                 print "Render error!"
                 traceback.print_exc()
+            self.rendered_frames += 1
             glutSwapBuffers()
 
     def output_file(self, fname):
@@ -249,6 +252,8 @@ class Renderer:
 
     def render_frames(self, file_name, num_frames=60, finished_callback=None):
         # set the output file for the renderer:
+        self.rendered_frames = 0
+        self.max_frames = num_frames
         self.output_file(file_name)
         self.texture('output')
         if not finished_callback:

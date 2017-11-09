@@ -24,15 +24,28 @@ class Editor(Renderer):
         self.current_camera = self.editor_camera
         self.animated_camera = InterpolatedCamera(self.external_cameras, self.finished)
         self.key_handlers = {}
+        self.anim_finished = False
+        self.max_frames = None
 
     def finished(self):
-        pass
+        if self.view_orbit_camera:
+            return False
+        self.anim_finished= True
+
+    def is_finished(self):
+        return self.anim_finished or self.rendered_frames > self.max_frames
 
     def eye_position(self):
         if self.view_final_camera:
             return self.animated_camera.eye_pos
         else:
             return self.editor_camera.eye_pos
+
+    def orbit_angle(self):
+        if self.view_final_camera:
+            return self.animated_camera.angle
+        else:
+            return self.editor_camera.angle
 
     def handle_special_keys(self, key, x, y):
         """
@@ -48,13 +61,18 @@ class Editor(Renderer):
             self.editor_camera.pan(0.05)
 
     def orbit_camera_on(self, idx=0):
-        self.editor_camera.create_from_camera(self.external_cameras[idx])
-        self.view_orbit_camera = True
-        self.view_final_camera = False
+        if self.view_orbit_camera:
+            self.view_orbit_camera = False
+            self.view_final_camera = False
+        else:
+            self.editor_camera.create_from_camera(self.external_cameras[idx])
+            self.view_orbit_camera = True
+            self.view_final_camera = False
 
     def load_camera(self, file_name):
         self.external_cameras = self.animated_camera.cameras
         self.animated_camera.load(file_name)
+        self.animated_camera.set_on_finish(self.finished)
         self.external_cameras = self.animated_camera.cameras
         self.view_final_camera = True
 
@@ -71,6 +89,7 @@ class Editor(Renderer):
             self.external_cameras = [None for i in xrange(0, 10)]
             self.animated_camera = InterpolatedCamera(self.external_cameras)
             self.view_final_camera = False
+            self.editor_camera = Camera([-4.95, 13.65, -10.43], 0.0, 10., 1.6)
         elif key == '+':
             self.orbit_camera_on()
         elif key =='R':
@@ -146,7 +165,7 @@ class Editor(Renderer):
     def add_key_handler(self, key, func):
         self.key_handlers[key] = func
 
-    def setup_scene(self):
+    def setup_scene(self, aperture=None, bokeh_theta=None):
         glEnable(GL_POINT_SPRITE);
         # setup the projection, modelview matrices
         glClearColor(0.,0.,0.,1.)
@@ -163,9 +182,9 @@ class Editor(Renderer):
 
         # compute the eye position, target position of our camera
         if self.view_final_camera and self.animated_camera.is_ready():
-            self.animated_camera.apply_matrix()
+            self.animated_camera.apply_matrix(aperture, bokeh_theta)
         else:
-            self.editor_camera.apply_matrix()
+            self.editor_camera.apply_matrix(aperture, bokeh_theta)
     def tick_cameras(self, dt):
         for camera in self.external_cameras:
             if camera:
@@ -173,6 +192,16 @@ class Editor(Renderer):
         self.animated_camera.tick(dt)
         if self.view_orbit_camera:
             self.editor_camera.orbit(dt * self.editor_camera.speed_mult)
+
+
+    def render_from_camera(self, camera, output_file, max_frames=None):
+        self.load_camera(camera)
+        self.view_final_camera = True
+        self.anim_finished = False
+        self.max_frames = max_frames
+        self.rendered_frames = 0
+        self.render_frames(output_file, finished_callback=self.is_finished)
+
     def draw_cameras(self):
         for camera in self.external_cameras:
             if camera:
