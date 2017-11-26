@@ -110,12 +110,23 @@ class Renderer:
         return self.texture_units[name]
 
     def texture_from_image(self, name, image_path):
-        # TODO: clean up to handle more texture formats
-        # port this logic to Texture class
-        img = Image.open(image_path).convert('RGB')
-        img_data = np.array(list(img.getdata()), np.uint8)
-        tex = self.texture(name, tformat=GL_RGB)
-        tex.set(img_data, img.size[0], img.size[1])
+        if '.exr' in image_path:
+            img = OpenEXR.InputFile(image_path)
+            w = img.header()['dataWindow'].max.x + 1
+            h = img.header()['dataWindow'].max.y + 1
+            r = np.fromstring(img.channels("R")[0], dtype=np.float32)
+            g = np.fromstring(img.channels("G")[0], dtype=np.float32)
+            b = np.fromstring(img.channels("B")[0], dtype=np.float32)
+            num_pixels = len(r) * 3
+            im_data = np.dstack([r,g,b])
+            im_data = im_data.reshape((1, num_pixels))[0]
+            tex = self.texture(name, tformat=GL_RGB, ttype=GL_FLOAT, tfilter=GL_NEAREST, tinternal_format=GL_RGB32F)
+            tex.set(im_data, w, h)
+        else:
+            img = Image.open(image_path).convert('RGB')
+            img_data = np.array(list(img.getdata()), np.uint8)
+            tex = self.texture(name, tformat=GL_RGB)
+            tex.set(img_data, img.size[0], img.size[1])
 
     def shader(self, name, frag_shader=None, vertex_shader=None, vbo=None):
         if vertex_shader != None or frag_shader != None:
@@ -205,7 +216,6 @@ class Renderer:
             raise 'Floating point framebuffer must be saved to .exr format'
 
         pixels = self.get_pixels()
-        print pixels
         if self.render_target.is_floating_point():
             # TODO: Is there a better way to read pixels into individual channels
             # so we're not doing this slow copy operation?
