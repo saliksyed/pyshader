@@ -52,11 +52,23 @@ You can find a more complicated example in the examples directory
 
 ### Setup
 
+NOTE: If you want to use videos you must have ffmpeg installed and in your path.
+
+### Installing on Mac OSX:
+You can use Homebrew (https://brew.sh/) to install the required packages, Python dependencies will automatically be installed by the setup script.
 ```
+brew install portaudio openexr libjpeg ffmpeg
+git clone git@github.com:saliksyed/pyshader.git
+sudo python setup.py install
+```
+### Installing on Linux: 
+You will need to install a few required packages using apt-get before running the setup script (instructions for Ubuntu). Python dependencies will automatically be installed by the setup script.
+```
+sudo apt-get install python-dev libasound-dev python-pyaudio openexr libopenexr-dev zlib1g-dev libjpeg-dev freeglut3 freeglut3-dev ffmpeg
+git clone git@github.com:saliksyed/pyshader.git
 sudo python setup.py install
 ```
 
-NOTE: If you want to use videos you must have ffmpeg installed and in your path.
 
 ### Dependencies
 * PyOpenGL(https://github.com/mcfletch/pyopengl)
@@ -64,19 +76,6 @@ NOTE: If you want to use videos you must have ffmpeg installed and in your path.
 * numpy(https://github.com/numpy/numpy)
 * OpenEXR(http://www.excamera.com/sphinx/articles-openexr.html)
 * PyAudio (https://people.csail.mit.edu/hubert/pyaudio/)
-(these will automatically be installed by the setup script)
-
-### Installing on Mac OSX:
-You can use Homebrew (https://brew.sh/) to install the required packages:
-```
-brew install portaudio openexr libjpeg
-```
-### Installing on Linux: 
-You will need to install a few required packages using apt-get before running the setup script (instructions for Ubuntu):
-```
-sudo apt-get install python-dev libasound-dev python-pyaudio openexr libopenexr-dev zlib1g-dev libjpeg-dev freeglut3 freeglut3-dev
-```
-
 
 ### Notes
 The library is a work in progress and is aimed primarily at 2D or computational shaders, 
