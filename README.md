@@ -50,10 +50,6 @@ viz.render_frames('video.mp4', 75) # <- render 75 frames to video.mp4
 You can find a more complicated example in the examples directory
 
 
-### Setup
-
-NOTE: If you want to use videos you must have ffmpeg installed and in your path.
-
 ### Installing on Mac OSX:
 You can use Homebrew (https://brew.sh/) to install the required packages, Python dependencies will automatically be installed by the setup script.
 ```
