@@ -63,9 +63,14 @@ NOTE: If you want to use videos you must have ffmpeg installed and in your path.
 * Pillow(https://github.com/python-pillow/Pillow)
 * numpy(https://github.com/numpy/numpy)
 * OpenEXR(http://www.excamera.com/sphinx/articles-openexr.html)
-
+* PyAudio (https://people.csail.mit.edu/hubert/pyaudio/)
 (these will automatically be installed by the setup script)
 
+### Installing on Mac OSX:
+You can use Homebrew (https://brew.sh/) to install the required packages:
+```
+brew install portaudio openexr libjpeg
+```
 ### Installing on Linux: 
 You will need to install a few required packages using apt-get before running the setup script (instructions for Ubuntu):
 ```
@@ -78,11 +83,8 @@ The library is a work in progress and is aimed primarily at 2D or computational 
 eventually I want to make this plug-and-play compatible with ShaderToy shaders but some work
 is needed to get the different features (audio).
 
-* You must have ffmpeg installed for this to work.
-* Not tested on Windows or Linux.
-* You MUST use unique names for textures and videos ... internally
-  videos are stored using texture names so you can't have 
-  both a texture and a video named 'foobar' for example.
+* You must have ffmpeg installed for video output to work.
+* Not tested on Windows
 
 Inspired by shadertoy(http://www.shadertoy.com) and igloojs(https://github.com/skeeto/igloojs)
 
