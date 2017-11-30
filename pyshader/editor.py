@@ -17,6 +17,9 @@ class Editor(Renderer):
         self.scale = 1.0
         glutKeyboardFunc(self.move)
         glutSpecialFunc(self.handle_special_keys)
+        self.reset_cameras()
+
+    def reset_cameras(self):
         self.external_cameras = [None for i in xrange(0,10)]
         self.view_final_camera = False
         self.view_orbit_camera = False
@@ -68,6 +71,15 @@ class Editor(Renderer):
             self.editor_camera.create_from_camera(self.external_cameras[idx])
             self.view_orbit_camera = True
             self.view_final_camera = False
+
+    def compute_camera_frames(self, file_name, dt):
+        tmp = InterpolatedCamera([None for i in xrange(0, 10)], None)
+        tmp.load(file_name)
+        i = 0
+        while tmp.finishTime == None:
+            tmp.tick(dt)
+            i += 1
+        return i
 
     def load_camera(self, file_name):
         self.external_cameras = self.animated_camera.cameras

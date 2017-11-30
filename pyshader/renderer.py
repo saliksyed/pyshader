@@ -9,6 +9,7 @@ from OpenGL.raw.GL.ARB.color_buffer_float import *
 import numpy as np
 import sys
 import subprocess as sp
+import os
 import OpenEXR, array
 from PIL import Image
 from helpers import FLIPPED_TEXTURE_FRAG_SHADER
@@ -20,7 +21,7 @@ from audio import Audio
 from vertex_attr import VertexAttr
 import threading
 import traceback
-
+import time
 class Renderer:
     RES8K = [7680, 4320]
     RES4K = [3840, 2160]
@@ -44,10 +45,9 @@ class Renderer:
         self.videos = {}
         self.audio_tracks = {}
         self.attrs = {}
+        self.pipe = None
         self.width = float(width)
         self.height = float(height)
-        self.isRunning = False
-        self.isWriting = False
         self.render_target = RenderTarget(resolution)
         self.rendered_frames = 0
         # The default texture shader is used by drawTexture()
@@ -71,9 +71,6 @@ class Renderer:
         glutDisplayFunc(self.display)
 
     def run(self):
-        if self.isWriting:
-            raise Exception('Can\'t display shader while writing to video file!')
-        isRunning = True
         glutMainLoop()
 
     def idle(self):
@@ -182,11 +179,21 @@ class Renderer:
             self.rendered_frames += 1
             glutSwapBuffers()
 
+    def stop_writing(self):
+        try:
+            self.pipe.stdin.flush()
+            self.pipe.terminate()
+        except OSError:
+            print "Could not close pipe"
+            pass
+        self.pipe.wait()
+        self.pipe = None
+
     def output_file(self, fname):
-        self.isWriting = True
-        if self.isRunning:
-            raise Exception('Can\'t write to video file and run live OpenGL context simultaneously!')
+        if self.pipe:
+            self.stop_writing()
         # TODO: Mix all audio inputs in renderer and output them with video file
+        devnull = open(os.devnull, 'wb')
         command = [ 'ffmpeg',
         '-y', # (optional) overwrite output file if it exists
         '-f', 'rawvideo',
@@ -200,7 +207,7 @@ class Renderer:
         '-crf',  '22',
         '-pix_fmt', 'yuv420p',
         fname ]
-        self.pipe = sp.Popen(command, stdin=sp.PIPE)
+        self.pipe = sp.Popen(command, stdin=sp.PIPE, stdout=devnull, stderr=devnull)
 
     def get_pixels(self):
         # if the texture is floating point switch the data type
@@ -241,15 +248,18 @@ class Renderer:
         self.save_framebuffer_to_image(imname)
         self.set_target(None)
 
+    def copy_texture(self, texture, output_texture):
+        (self.shader('default_texture_shader').use()
+            .input(texture, withName='inputImage')
+            .drawTo(output_texture))
+
     def save_frame(self):
-        # if the texture is floating point throw an exception
-        # since it can't be written to video
         if self.render_target.is_floating_point():
             raise 'Cannot save floating point framebuffer output to video'
         pixel_buffer = glReadPixels(0, 0, self.width, self.height, GL_RGB, GL_UNSIGNED_BYTE)
         self.pipe.stdin.write(pixel_buffer)
 
-    def set_target(self, texture_name=None, render_target=None):
+    def set_target(self, texture_name=None, render_target=None, clear=False):
         if texture_name == None:
             glBindFramebuffer(GL_FRAMEBUFFER, 0)
             glBindTexture(GL_TEXTURE_2D, 0)
@@ -258,7 +268,7 @@ class Renderer:
                 self.texture(texture_name)
             if not render_target:
                 render_target = self.render_target
-            render_target.attach(self.textures[texture_name])
+            render_target.attach(self.textures[texture_name], clear=clear)
 
     def render_frames(self, file_name, num_frames=60, finished_callback=None):
         # set the output file for the renderer:

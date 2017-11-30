@@ -95,7 +95,7 @@ class Shader:
     def drawTo(self, target, clear=True):
         if target != None:
             # bind to the framebuffer
-            self.ctx.set_target(target)
+            self.ctx.set_target(target, clear=clear)
         self.draw(clear)
         self.ctx.set_target(None)
         return self

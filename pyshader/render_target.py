@@ -22,8 +22,13 @@ class RenderTarget:
             return False
         return self.attached_texture.dtype() == 'float32'
 
-    def attach(self, texture):
+    def attach(self, texture, clear=False):
         self.attached_texture = texture
         glBindFramebuffer(GL_FRAMEBUFFER, self.framebuffer)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.texture, 0)
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.renderbuffer);
+        # if clear != False:
+        #     if self.is_floating_point():
+        #         glClearNamedFramebufferfv(self.framebuffer, GL_COLOR, 0, [0.0, 0.0, 0.0, 0.0])
+        #     else:
+        #         glClearNamedFramebufferuiv(self.framebuffer, GL_COLOR, 0, [0,0,0,0])

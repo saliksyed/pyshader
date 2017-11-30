@@ -34,6 +34,7 @@ class InterpolatedCamera:
         self.set_cameras(cameras)
         self.total_t = 0
         self.on_finish_callback = on_finish_callback
+        self.finishTime = None
 
     def is_ready(self):
         return len(filter(lambda x : x != None, self.cameras)) > 0
@@ -128,6 +129,7 @@ class InterpolatedCamera:
         elif (alpha + dt) >= 1.0:
             if self.on_finish_callback:
                 self.on_finish_callback()
+            self.finishTime = self.total_t
             self.init()
         self.t += dt
         x = self.blend(alpha, self.current_camera().eye_pos[0], self.target_camera().eye_pos[0])
