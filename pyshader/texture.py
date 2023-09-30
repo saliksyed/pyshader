@@ -39,7 +39,7 @@ class Texture:
             return np.frombuffer(glGetTexImage(GL_TEXTURE_2D, 0, self.format, self.type), np.float32)
 
     def blank(self, width, height):
-        source_copy = np.array([[0, 0, 0, 255] for i in xrange(0, int(width*height))], copy=True)
+        source_copy = np.array([[0, 0, 0, 255] for i in range(0, int(width*height))], copy=True)
         glBindTexture(GL_TEXTURE_2D, self.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)
 
@@ -49,6 +49,6 @@ class Texture:
         glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)
 
     def noise(self, width, height):
-        source_copy = np.array([[int(255*random.random()), int(255*random.random()), int(255*random.random()), int(255*random.random())] for i in xrange(0, int(width*height))], copy=True)
+        source_copy = np.array([[int(255*random.random()), int(255*random.random()), int(255*random.random()), int(255*random.random())] for i in range(0, int(width*height))], copy=True)
         glBindTexture(GL_TEXTURE_2D, self.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, self.internal_format, width, height, 0, self.format, self.type, source_copy)        

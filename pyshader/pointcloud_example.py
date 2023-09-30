@@ -1,4 +1,6 @@
-from pyshader import VBO, Renderer, Editor
+from vbo import VBO
+from renderer import Renderer
+from editor import Editor
 import numpy as np
 from OpenGL.GL import *
 from OpenGL.GLU import *

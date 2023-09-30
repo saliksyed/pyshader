@@ -20,7 +20,7 @@ class Editor(Renderer):
         self.reset_cameras()
 
     def reset_cameras(self):
-        self.external_cameras = [None for i in xrange(0,10)]
+        self.external_cameras = [None for i in range(0,10)]
         self.view_final_camera = False
         self.view_orbit_camera = False
         self.editor_camera = Camera([-4.95, 13.65, -10.43], 0.0, 10., 1.6)
@@ -73,7 +73,7 @@ class Editor(Renderer):
             self.view_final_camera = False
 
     def compute_camera_frames(self, file_name, dt):
-        tmp = InterpolatedCamera([None for i in xrange(0, 10)], None)
+        tmp = InterpolatedCamera([None for i in range(0, 10)], None)
         tmp.load(file_name)
         i = 0
         while tmp.finishTime == None:
@@ -98,7 +98,7 @@ class Editor(Renderer):
             else:
                 self.scale = 0.1
         elif key == "_":
-            self.external_cameras = [None for i in xrange(0, 10)]
+            self.external_cameras = [None for i in range(0, 10)]
             self.animated_camera = InterpolatedCamera(self.external_cameras)
             self.view_final_camera = False
             self.editor_camera = Camera([-4.95, 13.65, -10.43], 0.0, 10., 1.6)

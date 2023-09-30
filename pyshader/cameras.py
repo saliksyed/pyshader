@@ -37,10 +37,11 @@ class InterpolatedCamera:
         self.finishTime = None
 
     def is_ready(self):
-        return len(filter(lambda x : x != None, self.cameras)) > 0
+        cameras = [c for c in filter(lambda x : x != None, self.cameras)]
+        return len(cameras) > 0
 
     def set_cameras(self, cameras):
-        cameras = filter(lambda x : x != None, cameras)
+        cameras = [c for c in filter(lambda x : x != None, cameras)]
         self.cameras = cameras
         self.default_camera = Camera()
         self.init()

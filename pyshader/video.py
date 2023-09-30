@@ -32,8 +32,9 @@ class Video:
             '-show_entries', 'stream=width,height',
             '-of', 'default=noprint_wrappers=1', self.video_file]
 
-        results = sp.check_output(info_command)
-        dimensions =  map(lambda x : int(x.split("=")[1]), results.split("\n")[:2])
+        results = sp.check_output(info_command).decode(sys.stdout.encoding)
+        
+        dimensions =  [x for x in map(lambda x : int(x.split("=")[1]), results.split("\n")[:2])]
         self.width = dimensions[0]
         self.height = dimensions[1]
 

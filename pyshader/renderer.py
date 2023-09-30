@@ -10,14 +10,13 @@ import numpy as np
 import sys
 import subprocess as sp
 import os
-import OpenEXR, array
+import array
 from PIL import Image
 from helpers import FLIPPED_TEXTURE_FRAG_SHADER
 from render_target import RenderTarget
 from texture import Texture
 from shader import Shader
 from video import Video
-from audio import Audio
 from vertex_attr import VertexAttr
 import threading
 import traceback
@@ -174,7 +173,7 @@ class Renderer:
             try:
                 self.draw()
             except:
-                print "Render error!"
+                print("Render error!")
                 traceback.print_exc()
             self.rendered_frames += 1
             glutSwapBuffers()
@@ -184,7 +183,7 @@ class Renderer:
             self.pipe.stdin.flush()
             self.pipe.terminate()
         except OSError:
-            print "Could not close pipe"
+            print("Could not close pipe")
             pass
         self.pipe.wait()
         self.pipe = None
@@ -229,7 +228,7 @@ class Renderer:
             r = []
             g = []
             b = []
-            for i in xrange(0, len(pixels)/4):
+            for i in range(0, len(pixels)/4):
                 r.append(pixels[i * 4])
                 g.append(pixels[i * 4 + 1])
                 b.append(pixels[i * 4 + 2])
@@ -277,7 +276,7 @@ class Renderer:
         self.output_file(file_name)
         self.texture('output')
         if not finished_callback:
-            for i in xrange(0, num_frames):
+            for i in range(0, num_frames):
                 print("Writing frame " + str(i))
 
                 # Set the target for the rendering pass 

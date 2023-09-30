@@ -150,25 +150,9 @@ class VBO:
             mins = [None, None, None]
             maxes = [None, None, None]
             for pt in self.vertices:
-                for i in xrange(0,3):
+                for i in range(0,3):
                     mins[i] = min(mins[i], pt[i]) or pt[i]
                     maxes[i] = max(maxes[i], pt[i])
 
             self.bounds = (mins, maxes)
         return self.bounds
-
-if __name__ == '__main__':
-    # simple sanity check:
-    a = VBO()
-    a.vertices = [[1.,2.,3.],[4.,5.,6.]]
-    a.tex_coords = [[5.,5.,5.],[7.,5.,6.]]
-    a.normals = [[1.,1.,1.],[1.,1.,1.]]
-    a.save('/tmp/test.vbo')
-    b = VBO()
-    b.load('/tmp/test.vbo')
-    print b.vertices
-    print b.tex_coords
-    print b.normals
-    print a.vertices
-    print a.tex_coords
-    print a.normals
