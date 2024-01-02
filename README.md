@@ -2,11 +2,10 @@ pyshader : OpenGL shaders made easy
 ====================
 
 ### Features
-* Quickly build shader pipelines: shader1->shader2->shader3
+* Quickly build shader pipelines: shader 1-> shader2 -> shader3
 * Easily import video and images into shaders as textures
 * Write shader output to MPEG video, EXR (floating point images) or a variety of other formats (JPEG, PNG)
 * Preview shader output using GLUT
-
 ### Usage
 
 You just need to import and extend `Renderer` from `pyshader` and add a `draw` method
